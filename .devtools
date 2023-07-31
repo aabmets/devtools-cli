@@ -1,0 +1,14 @@
+{
+  "license": {
+    "header": {
+      "title": "MIT License",
+      "year": "2023",
+      "holder": "Mattias Aabmets",
+      "spdx_id": "MIT",
+      "spaces": 3
+    },
+    "include_paths": [],
+    "exclude_paths": [],
+    "filename": "mit.json"
+  }
+}
