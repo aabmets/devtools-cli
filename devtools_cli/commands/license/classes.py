@@ -9,7 +9,53 @@
 #
 #   SPDX-License-Identifier: MIT
 #
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict, field
+
+__all__ = [
+	"LicenseData",
+	"HeaderConfig",
+	"LicenseConfig",
+	"CommentSymbols",
+	"HashSymbolExtMap",
+	"StarSymbolExtMap",
+	"HeaderTemplate",
+	"LicenseHeader"
+]
+
+
+@dataclass
+class DictConverter:
+	def to_dict(self) -> dict:
+		return asdict(self)
+
+
+@dataclass
+class LicenseData(DictConverter):
+	title: str
+	spdx_id: str
+	index_id: str
+	permissions: list[str]
+	conditions: list[str]
+	limitations: list[str]
+	web_url: str
+	full_text: str
+
+
+@dataclass
+class HeaderConfig(DictConverter):
+	title: str = ''
+	year: str = ''
+	holder: str = ''
+	spdx_id: str = ''
+	spaces: int = 3
+
+
+@dataclass
+class LicenseConfig(DictConverter):
+	header: HeaderConfig = field(default_factory=HeaderConfig)
+	include_paths: list[str] = field(default_factory=list)
+	exclude_paths: list[str] = field(default_factory=list)
+	filename: str = ''
 
 
 @dataclass(frozen=True)
@@ -61,13 +107,12 @@ class StarSymbolExtMap:
 @dataclass(frozen=True)
 class HeaderTemplate:
 	text = [
-		"{lic_name}",
+		"{title}",
 		"",
-		"Copyright (c) {cr_year}, {cr_holder}",
+		"Copyright (c) {year}, {holder}",
 		"",
-		"This file is subject to the terms and conditions defined in",
-		"the License. You may not use, modify, or distribute this file",
-		"except in compliance with the License.",
+		"The contents of this file are subject to the terms and conditions defined in the License.",
+		"You may not use, modify, or distribute this file except in compliance with the License.",
 		"",
 		"SPDX-License-Identifier: {spdx_id}"
 	]
@@ -88,35 +133,24 @@ class LicenseHeader:
 		text (str): A string representation of the license header text.
 
 	Args:
-		lic_name (str): The license name, e.g., "MIT License".
-		cr_year (str): The copyright year, e.g., "2023".
-		cr_holder (str): The copyright holder, e.g., "John Doe".
-		spdx_id (str): The SPDX license identifier, e.g., "MIT".
-		spaces (int): The number of spaces to use for indentation in the license text.
+		config (HeaderConfig): An instance of the HeaderConfig class, which contains
+			the formatting values for the placeholders in the license header template.
 		symbols (CommentSymbols): A CommentSymbols instance representing the comment
 			symbols for the first, middle, and the last line of the license header block.
 	"""
 
-	def __init__(
-			self,
-			lic_name: str,
-			cr_year: str,
-			cr_holder: str,
-			spdx_id: str,
-			spaces: int,
-			symbols: CommentSymbols
-	):
+	def __init__(self, config: HeaderConfig, symbols: CommentSymbols):
 		template = HeaderTemplate()
+		indent = config.spaces * ' '
 		header = [symbols.first]
-		indent = spaces * ' '
 
 		for line in template.text:
 			header.append(symbols.middle + indent + line)
 		header.append(symbols.last + '\n')
 
 		self.text = '\n'.join(header).format(
-			lic_name=lic_name,
-			cr_year=cr_year,
-			cr_holder=cr_holder,
-			spdx_id=spdx_id
+			title=config.title,
+			year=config.year,
+			holder=config.holder,
+			spdx_id=config.spdx_id
 		)
