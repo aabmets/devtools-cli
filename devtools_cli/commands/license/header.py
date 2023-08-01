@@ -8,53 +8,16 @@
 #
 #   SPDX-License-Identifier: MIT
 #
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
+from .models import HeaderConfig
 
 __all__ = [
-	"LicenseData",
-	"HeaderConfig",
-	"LicenseConfig",
 	"CommentSymbols",
 	"HashSymbolExtMap",
 	"StarSymbolExtMap",
 	"HeaderTemplate",
 	"LicenseHeader"
 ]
-
-
-@dataclass
-class DictConverter:
-	def to_dict(self) -> dict:
-		return asdict(self)
-
-
-@dataclass
-class LicenseData(DictConverter):
-	title: str
-	spdx_id: str
-	index_id: str
-	permissions: list[str]
-	conditions: list[str]
-	limitations: list[str]
-	web_url: str
-	full_text: str
-
-
-@dataclass
-class HeaderConfig(DictConverter):
-	title: str = ''
-	year: str = ''
-	holder: str = ''
-	spdx_id: str = ''
-	spaces: int = 3
-
-
-@dataclass
-class LicenseConfig(DictConverter):
-	header: HeaderConfig = field(default_factory=HeaderConfig)
-	include_paths: list[str] = field(default_factory=list)
-	exclude_paths: list[str] = field(default_factory=list)
-	filename: str = ''
 
 
 @dataclass(frozen=True)
