@@ -18,38 +18,40 @@ from rich.progress import Progress
 from rich.console import Console
 from rich.table import Table
 from .helpers import *
+from .models import *
+from devtools_cli.utils import *
 
 app = Typer(name="license")
 console = Console(soft_wrap=True)
 
 
 YearOpt = Annotated[List[str], Option(
-	"--year", "-Y", show_default=False, help=
+	"--year", "-Y", show_default=False, help=''
 	"The year of the copyright claim."
 )]
 HolderOpt = Annotated[str, Option(
-	'--holder', '-H', show_default=False, help=
+	'--holder', '-H', show_default=False, help=''
 	"The name of the copyright holder."
 )]
 IdentOpt = Annotated[str, Option(
-	"--id", "-I", show_default=False, help=
+	"--id", "-I", show_default=False, help=''
 	"Either the numerical index or The SPDX identifier of the "
 	"license from the available licenses list. Case-insensitive. "
 	"Execute \"devtools license --help\" for more info."
 )]
 SpacesOpt = Annotated[int, Option(
-	"--spaces", "-S", show_default=False, help=
+	"--spaces", "-S", show_default=False, help=''
 	"How many spaces the license header contents will be"
 	"indented with from the comment symbol. Default: 3"
 )]
 InclPathsOpt = Annotated[List[str], Option(
-	"--include", "-i", show_default=False, help=
+	"--include", "-i", show_default=False, help=''
 	"A subdirectory path in the project directory, which will be "
 	"processed by this script. If provided, only the included "
 	"paths are processed. Option can be used multiple times."
 )]
 ExclPathsOpt = Annotated[List[str], Option(
-	"--exclude", "-e", show_default=False, help=
+	"--exclude", "-e", show_default=False, help=''
 	"A subdirectory path in the project directory, which "
 	"will be excluded from being processed by this script. "
 	"Option can be used multiple times."
@@ -102,19 +104,19 @@ def cmd_list() -> None:
 	"""
 	Prints out the list of available licenses to the console.
 	"""
-	metadata = read_licenses_metadata()
-	lic_list: list[dict] = metadata["lic_list"]
+	read_local_config_file(LicenseConfig, 'license')
+	metadata = read_license_metadata()
 
 	table = Table(title="Available Licenses")
 	table.add_column("Index", justify="center", style="sandy_brown", no_wrap=True)
 	table.add_column("SPDX-Identifier", style="cyan", no_wrap=True)
 	table.add_column("License Name", style="orchid", no_wrap=True)
 
-	for lic in lic_list:
+	for lic in metadata.lic_list:
 		table.add_row(
-			lic["index_id"],
-			lic["spdx_id"],
-			lic["title"],
+			lic.index_id,
+			lic.spdx_id,
+			lic.title
 		)
 
 	console.print('')
@@ -129,8 +131,8 @@ def cmd_read(ident: IdentOpt = None) -> None:
 	devtools config file. Else, it tries to open the browser to a valid matching identifier.
 	"""
 	if not ident:
-		config = read_local_license_config()
-		filepath = filename_to_license_filepath(config.filename)
+		config = read_local_config_file(LicenseConfig, 'license')
+		filepath = get_data_storage_path("licenses") / config.filename
 		if not filepath:
 			return  # TODO: complain about missing config file
 	else:
@@ -138,7 +140,7 @@ def cmd_read(ident: IdentOpt = None) -> None:
 		if not filepath:
 			return  # TODO: complain about bad identifier
 
-	details = read_license_details(filepath)
+	details = read_file_into_model(filepath, LicenseDetails)
 	webbrowser.open(details.web_url)
 
 
