@@ -14,6 +14,7 @@ import httpx
 import orjson
 import asyncio
 from pathlib import Path
+from typing import Callable
 from devtools_cli.utils import *
 from .classes import *
 
@@ -74,12 +75,15 @@ async def fetch_one_license(client: httpx.AsyncClient, index: int, filename: str
 	}
 
 
-async def fetch_license_details(filenames: list[str]) -> list[dict]:
+async def fetch_license_details(filenames: list[str], callback: Callable) -> list[dict]:
 	async with httpx.AsyncClient() as client:
-		return await asyncio.gather(*[
-			fetch_one_license(client, index, filename)
-			for index, filename in enumerate(filenames, start=1)
-		])
+		tasks = []
+		for index, filename in enumerate(filenames, start=1):
+			coro = fetch_one_license(client, index, filename)
+			task = asyncio.create_task(coro)
+			task.add_done_callback(callback)
+			tasks.append(task)
+		return await asyncio.gather(*tasks)
 
 
 def get_license_storage_path(filename: str) -> Path:

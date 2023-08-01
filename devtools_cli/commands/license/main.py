@@ -8,16 +8,19 @@
 #
 #   SPDX-License-Identifier: MIT
 #
+import time
 import asyncio
 import webbrowser
-from typing import List
+from typing import List, Any
 from typer import Typer, Option
 from typing_extensions import Annotated
+from rich.progress import Progress
 from rich.console import Console
 from rich.table import Table
 from .helpers import *
 
 app = Typer(name="license")
+console = Console(soft_wrap=True)
 
 
 YearOpt = Annotated[List[str], Option(
@@ -70,10 +73,28 @@ def cmd_update() -> None:
 	"""
 	Updates the available licenses from the https://choosealicense.com website.
 	"""
-	filenames = fetch_license_filenames()
-	coro = fetch_license_details(filenames)
-	licenses = asyncio.run(coro)
+	def callback(_: Any = None):
+		progress.update(task, advance=1)
+		time.sleep(0.01)
+
+	columns = Progress.get_default_columns()[:-1]
+
+	with Progress(*columns, refresh_per_second=100) as progress:
+		label = "[deep_sky_blue3]Downloading:"
+		task = progress.add_task(label, start=False)
+
+		filenames = fetch_license_filenames()
+		progress.tasks[0].total = len(filenames)
+		progress.start_task(task)
+
+		coro = fetch_license_details(filenames, callback)
+		licenses = asyncio.run(coro)
+
+	console.print("Writing licenses to storage... ", style="grey78", end='')
 	write_licenses_to_storage(licenses)
+
+	time.sleep(0.5)
+	console.print(f"Done! Updated {len(filenames)} licenses.\n", style="grey78")
 
 
 @app.command(name="list", epilog="Example: devtools license list")
@@ -96,7 +117,6 @@ def cmd_list() -> None:
 			lic["title"],
 		)
 
-	console = Console(soft_wrap=True)
 	console.print('')
 	console.print(table)
 
