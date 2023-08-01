@@ -9,47 +9,213 @@
 #   SPDX-License-Identifier: MIT
 #
 import orjson
+from typing import Any
 from pathlib import Path
+from .models import *
 
 GLOBAL_DATA_DIR = ".devtools-cli"
 LOCAL_CONFIG_FILE = ".devtools"
 
 __all__ = [
-	"get_global_data_dir",
+	"get_data_storage_path",
 	"find_local_config_file",
 	"read_local_config_file",
-	"write_local_config_file"
+	"write_local_config_file",
+	"read_file_into_model",
+	"write_model_into_file"
 ]
 
 
-def get_global_data_dir() -> Path:
+def check_model_type(arg: Any, expect: str) -> None:
+	match expect:
+		case 'class':
+			if not issubclass(arg, FilterModel):
+				raise TypeError(
+					f"Expected a subclass of FilterModel, "
+					f"but received a '{arg.__name__}' instead."
+				)
+		case 'object':
+			if not isinstance(arg, FilterModel):
+				raise TypeError(
+					f"Expected an instance of FilterModel, "
+					f"but received a '{type(arg)}' instead."
+				)
+		case _:
+			raise ValueError(
+				f"Expected a string literal 'class' or 'object' for the "
+				f"'expect' parameter, but received '{expect}' instead."
+			)
+
+
+def get_data_storage_path(subdir='', filename='', create=False) -> Path:
+	"""
+	Gets the path for a data storage location.
+
+	This function constructs a path to a data storage location
+	in the user's home directory. Options to create the directory
+	and/or file if they don't exist are provided.
+
+	Args:
+		subdir: Subdirectory under the global data directory.
+		filename: Name of the file under the subdir or global data directory.
+		create: If True, creates the directory and/or file if they don't exist.
+			Defaults to False.
+
+	Returns:
+		A pathlib.Path object for the data storage location.
+	"""
 	data_path = Path.home() / GLOBAL_DATA_DIR
-	data_path.mkdir(parents=True, exist_ok=True)
+	if subdir:
+		data_path = data_path / subdir
+		if create:
+			data_path.mkdir(parents=True, exist_ok=True)
+	if filename:
+		data_path = data_path / filename
+		if create:
+			data_path.touch(exist_ok=True)
 	return data_path
 
 
 def find_local_config_file() -> Path:
+	"""
+	Find the local configuration file.
+
+	This function searches for a local configuration file starting
+	from the current directory and going up to the root directory.
+	If the file is not found, it creates one in the current directory.
+
+	Returns:
+		A pathlib.Path object representing the path to the local configuration file.
+	"""
 	current_path = Path.cwd()
-	while current_path != current_path.root:
+	root = Path(current_path.parts[0])
+	while current_path != root:
 		config_path = current_path / LOCAL_CONFIG_FILE
 		if config_path.exists():
 			return config_path
 		current_path = current_path.parent
-	new_path = Path.cwd() / LOCAL_CONFIG_FILE
-	new_path.touch(exist_ok=True)
-	return new_path
+	config_path = Path.cwd() / LOCAL_CONFIG_FILE
+	config_path.touch(exist_ok=True)
+	return config_path
 
 
-def read_local_config_file() -> dict:
+def read_local_config_file(model_cls: type[SubModel], section: str = None) -> SubModel:
+	"""
+	Reads and parses a local config file (expected to be JSON), filters it by
+	a given section (optional), and models the data using a provided class.
+	If the file doesn't exist, it is created in the current working directory.
+
+	Args:
+		model_cls: A subclass of `FilterModel` used to model the parsed data.
+		section: Section of the file to parse. If None, the entire file is used.
+
+	Returns:
+		FilterModel: Instance of `model_cls` initialized with the parsed data.
+
+	Raises:
+		TypeError: If the `model_cls` arg is not a subclass of `FilterModel`.
+		JSONDecodeError: If the file contents cannot be parsed into an object.
+	"""
+	check_model_type(model_cls, expect="class")
 	path = find_local_config_file()
+
 	with open(path, 'rb') as file:
-		data = file.read() or '{}'
-		return orjson.loads(data)
+		data = file.read() or b'{}'
+		data = orjson.loads(data)
+
+		if section and isinstance(section, str):
+			data = data.get(section, {})
+
+		return model_cls(**data)
 
 
-def write_local_config_file(config: dict) -> None:
+def write_local_config_file(model_obj: SubModel, section: str = None) -> None:
+	"""
+	Serializes and writes a given configuration to a local file.
+
+	If the config is an instance of FilterModel, it's converted to a
+	dictionary before serialization. Updates the specified section if
+	provided, otherwise overwrites the whole file. If the file doesn't
+	exist, it is created in the current working directory.
+
+	Args:
+		model_obj: An instance of a subclass of FilterModel.
+		section: Section to update in the file, optional.
+			Overwrites the entire file by default.
+
+	Raises:
+		TypeError: If the `model_obj` arg is not an instance of FilterModel.
+		JSONEncodeError: If the config object cannot be dumped into a string.
+	"""
+	check_model_type(model_obj, expect="object")
+
+	if section and isinstance(section, str):
+		data = read_local_config_file(model_obj.__class__, section)
+		setattr(data, section, model_obj)
+
 	path = find_local_config_file()
 	with open(path, 'wb') as file:
-		pretty = orjson.OPT_INDENT_2
-		dump = orjson.dumps(config, option=pretty)
+		dump = orjson.dumps(
+			model_obj.to_dict(),
+			option=orjson.OPT_INDENT_2
+		)
 		file.write(dump)
+
+
+def read_file_into_model(path: Path, model_cls: type[SubModel]) -> SubModel:
+	"""
+	Loads JSON data from a file into an instance of a FilterModel subclass.
+
+	Args:
+		path: An instance of pathlib.Path.
+		model_cls: A subclass of the FilterModel.
+
+	Returns:
+		Instance of `model_cls` populated with data.
+
+	Raises:
+		FileNotFoundError: If the path doesn't exist or isn't a file.
+		TypeError: If the `path` arg is not an instance of pathlib.Path
+			or the `model_cls` arg is not a subclass of `FilterModel`.
+	"""
+	check_model_type(model_cls, expect="class")
+
+	if not path or not isinstance(path, Path):
+		raise TypeError("The `path` arg must be an instance of pathlib.Path.")
+	if not path.exists() or not path.is_file():
+		raise FileNotFoundError("Path doesn't exist or isn't a file.")
+
+	with open(path, 'rb') as file:
+		data = orjson.loads(file.read())
+		return model_cls(**data)
+
+
+def write_model_into_file(path: Path, model_obj: SubModel) -> None:
+	"""
+	Dumps the data of a FilterModel instance into a JSON file.
+
+	Args:
+		path: An instance of pathlib.Path.
+		model_obj: An instance of a subclass of FilterModel.
+
+	Returns:
+		None
+
+	Raises:
+		FileNotFoundError: If the path exists and isn't a file.
+		TypeError: If the `path` arg is not an instance of pathlib.Path
+			or the `model_obj` arg is not an instance of `FilterModel`.
+	"""
+	check_model_type(model_obj, expect="object")
+
+	if not path or not isinstance(path, Path):
+		raise TypeError("The `path` arg must be an instance of pathlib.Path.")
+	if path.exists() and not path.is_file():
+		raise FileNotFoundError("Path exists, but isn't a file.")
+
+	with open(path, 'wb') as file:
+		data = orjson.dumps(
+			model_obj.to_dict(),
+			option=orjson.OPT_INDENT_2
+		)
+		file.write(data)
