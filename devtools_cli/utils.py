@@ -99,7 +99,7 @@ def find_local_config_file() -> Path:
 	return config_path
 
 
-def read_local_config_file(model_cls: type[SubModel], section: str = None) -> SubModel:
+def read_local_config_file(model_cls: type[FilterModelTypeHint], section: str = None) -> FilterModelTypeHint:
 	"""
 	Reads and parses a local config file (expected to be JSON), filters it by
 	a given section (optional), and models the data using a provided class.
@@ -129,40 +129,35 @@ def read_local_config_file(model_cls: type[SubModel], section: str = None) -> Su
 		return model_cls(**data)
 
 
-def write_local_config_file(model_obj: SubModel, section: str = None) -> None:
+def write_local_config_file(model_obj: FilterModelTypeHint, section: str = None) -> None:
 	"""
 	Serializes and writes a given configuration to a local file.
 
-	If the config is an instance of FilterModel, it's converted to a
-	dictionary before serialization. Updates the specified section if
-	provided, otherwise overwrites the whole file. If the file doesn't
-	exist, it is created in the current working directory.
+	Updates the specified section if provided, otherwise overwrites the whole file.
+	If the file doesn't exist, it is created in the current working directory.
 
 	Args:
-		model_obj: An instance of a subclass of FilterModel.
-		section: Section to update in the file, optional.
-			Overwrites the entire file by default.
+		model_obj: A FilterModel instance.
+		section: Optional section to update, overwrites file by default.
 
 	Raises:
-		TypeError: If the `model_obj` arg is not an instance of FilterModel.
-		JSONEncodeError: If the config object cannot be dumped into a string.
+		TypeError: If `model_obj` isn't an instance of FilterModel.
+		JSONEncodeError: If config can't be serialized.
 	"""
 	check_model_type(model_obj, expect="object")
+	to_dict, path = model_obj.to_dict, find_local_config_file()
 
 	if section and isinstance(section, str):
-		data = read_local_config_file(model_obj.__class__, section)
+		data = read_local_config_file(FilterModel)
 		setattr(data, section, model_obj)
+		to_dict = data.model_dump
 
-	path = find_local_config_file()
 	with open(path, 'wb') as file:
-		dump = orjson.dumps(
-			model_obj.to_dict(),
-			option=orjson.OPT_INDENT_2
-		)
+		dump = orjson.dumps(to_dict(), option=orjson.OPT_INDENT_2)
 		file.write(dump)
 
 
-def read_file_into_model(path: Path, model_cls: type[SubModel]) -> SubModel:
+def read_file_into_model(path: Path, model_cls: type[FilterModelTypeHint]) -> FilterModelTypeHint:
 	"""
 	Loads JSON data from a file into an instance of a FilterModel subclass.
 
@@ -190,16 +185,13 @@ def read_file_into_model(path: Path, model_cls: type[SubModel]) -> SubModel:
 		return model_cls(**data)
 
 
-def write_model_into_file(path: Path, model_obj: SubModel) -> None:
+def write_model_into_file(path: Path, model_obj: FilterModelTypeHint) -> None:
 	"""
 	Dumps the data of a FilterModel instance into a JSON file.
 
 	Args:
 		path: An instance of pathlib.Path.
 		model_obj: An instance of a subclass of FilterModel.
-
-	Returns:
-		None
 
 	Raises:
 		FileNotFoundError: If the path exists and isn't a file.

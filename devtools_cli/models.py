@@ -13,7 +13,7 @@ from pydantic import BaseModel, ValidationError
 from rich.pretty import pprint
 from rich import print
 
-__all__ = ["FilterModel", "SubModel"]
+__all__ = ["FilterModel", "FilterModelTypeHint"]
 
 
 class FilterModel(BaseModel, extra='allow'):
@@ -43,4 +43,4 @@ class FilterModel(BaseModel, extra='allow'):
 		return self.model_dump(include=fields)
 
 
-SubModel = TypeVar('SubModel', bound=FilterModel)
+FilterModelTypeHint = TypeVar('FilterModelTypeHint', bound=FilterModel)
