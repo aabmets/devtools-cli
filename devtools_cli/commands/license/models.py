@@ -9,7 +9,7 @@
 #   SPDX-License-Identifier: MIT
 #
 from pydantic import Field, AliasChoices
-from devtools_cli.models import FilterModel
+from devtools_cli.models import FilterModel, ConfigModel
 
 __all__ = [
 	"GitHubRepoLeaf",
@@ -55,16 +55,35 @@ class LicenseDetails(FilterModel):
 	full_text: str
 
 
-class HeaderConfig(FilterModel):
+class HeaderConfig(ConfigModel):
 	title: str
 	year: str
 	holder: str
 	spdx_id: str
 	spaces: int
 
+	@staticmethod
+	def __defaults__() -> dict:
+		return {
+			"title": "[title]",
+			"year": "[year]",
+			"holder": "[holder]",
+			"spdx_id": "[spdx_id]",
+			"spaces": 3
+		}
 
-class LicenseConfig(FilterModel):
+
+class LicenseConfig(ConfigModel):
 	header: HeaderConfig
 	include_paths: list[str]
 	exclude_paths: list[str]
 	filename: str
+
+	@staticmethod
+	def __defaults__() -> dict:
+		return {
+			"header": HeaderConfig(),
+			"include_paths": list(),
+			"exclude_paths": list(),
+			"filename": "DEFAULT"
+		}
