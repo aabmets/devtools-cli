@@ -9,14 +9,18 @@
 #   SPDX-License-Identifier: MIT
 #
 import orjson
-from typing import Any
+from rich import print
 from pathlib import Path
+from typing import Any, Callable
+from pydantic import ValidationError
+from orjson import JSONDecodeError, JSONEncodeError
 from .models import *
 
 GLOBAL_DATA_DIR = ".devtools-cli"
 LOCAL_CONFIG_FILE = ".devtools"
 
 __all__ = [
+	"io_error_pretty_printer",
 	"get_data_storage_path",
 	"find_local_config_file",
 	"read_local_config_file",
@@ -24,6 +28,16 @@ __all__ = [
 	"read_file_into_model",
 	"write_model_into_file"
 ]
+
+
+def io_error_pretty_printer(func: Callable) -> Callable:
+	def closure(*args, **kwargs) -> Any:
+		try:
+			return func(*args, **kwargs)
+		except (OSError, JSONDecodeError, JSONEncodeError, ValidationError) as ex:
+			print(ex)
+			raise SystemExit()
+	return closure
 
 
 def check_model_type(arg: Any, expect: str) -> None:
@@ -99,6 +113,7 @@ def find_local_config_file() -> Path:
 	return config_path
 
 
+@io_error_pretty_printer
 def read_local_config_file(model_cls: type[FilterModelTypeHint], section: str = None) -> FilterModelTypeHint:
 	"""
 	Reads and parses a local config file (expected to be JSON), filters it by
@@ -115,6 +130,8 @@ def read_local_config_file(model_cls: type[FilterModelTypeHint], section: str = 
 	Raises:
 		TypeError: If the `model_cls` arg is not a subclass of `FilterModel`.
 		JSONDecodeError: If the file contents cannot be parsed into an object.
+		ValidationError: If the loaded data fails Pydantic model validation.
+		IOError: If there's a problem reading from the local config file.
 	"""
 	check_model_type(model_cls, expect="class")
 	path = find_local_config_file()
@@ -129,6 +146,7 @@ def read_local_config_file(model_cls: type[FilterModelTypeHint], section: str = 
 		return model_cls(**data)
 
 
+@io_error_pretty_printer
 def write_local_config_file(model_obj: FilterModelTypeHint, section: str = None) -> None:
 	"""
 	Serializes and writes a given configuration to a local file.
@@ -142,6 +160,7 @@ def write_local_config_file(model_obj: FilterModelTypeHint, section: str = None)
 
 	Raises:
 		TypeError: If `model_obj` isn't an instance of FilterModel.
+		IOError: If there's a problem writing to the local config file.
 		JSONEncodeError: If config can't be serialized.
 	"""
 	check_model_type(model_obj, expect="object")
@@ -157,6 +176,7 @@ def write_local_config_file(model_obj: FilterModelTypeHint, section: str = None)
 		file.write(dump)
 
 
+@io_error_pretty_printer
 def read_file_into_model(path: Path, model_cls: type[FilterModelTypeHint]) -> FilterModelTypeHint:
 	"""
 	Loads JSON data from a file into an instance of a FilterModel subclass.
@@ -169,9 +189,11 @@ def read_file_into_model(path: Path, model_cls: type[FilterModelTypeHint]) -> Fi
 		Instance of `model_cls` populated with data.
 
 	Raises:
+		ValidationError. If the loaded data fails Pydantic model validation.
 		FileNotFoundError: If the path doesn't exist or isn't a file.
 		TypeError: If the `path` arg is not an instance of pathlib.Path
 			or the `model_cls` arg is not a subclass of `FilterModel`.
+		IOError: If there's a problem reading from the data file.
 	"""
 	check_model_type(model_cls, expect="class")
 
@@ -185,6 +207,7 @@ def read_file_into_model(path: Path, model_cls: type[FilterModelTypeHint]) -> Fi
 		return model_cls(**data)
 
 
+@io_error_pretty_printer
 def write_model_into_file(path: Path, model_obj: FilterModelTypeHint) -> None:
 	"""
 	Dumps the data of a FilterModel instance into a JSON file.
@@ -197,6 +220,7 @@ def write_model_into_file(path: Path, model_obj: FilterModelTypeHint) -> None:
 		FileNotFoundError: If the path exists and isn't a file.
 		TypeError: If the `path` arg is not an instance of pathlib.Path
 			or the `model_obj` arg is not an instance of `FilterModel`.
+		IOError: If there's a problem writing to the data file.
 	"""
 	check_model_type(model_obj, expect="object")
 
