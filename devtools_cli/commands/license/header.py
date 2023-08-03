@@ -8,10 +8,7 @@
 #
 #   SPDX-License-Identifier: MIT
 #
-from abc import ABC
 from pathlib import Path
-from pydantic import BaseModel
-from dataclasses import dataclass
 from .models import LicenseConfigHeader
 
 __all__ = [
@@ -19,27 +16,103 @@ __all__ = [
 	"HeaderData",
 	"HashSymbolHeaderData",
 	"StarSymbolHeaderData",
-	"HeaderTemplate",
 	"LicenseHeader"
 ]
 
+Symbol = str | tuple[str, str]
 
-@dataclass(frozen=True)
+
 class CommentSymbols:
-	first: str
-	middle: str
-	last: str
+	"""
+	This class encapsulates the comment symbols for different programming languages.
+	It holds the first, middle, and last symbols used to generate and insert license
+	headers based on filetype. For each of the comment symbols, it can also contain an
+	alias symbol used to identify pre-existing license headers in source code files.
+
+	Properties:
+		first: Property to return the first symbol or its alias.
+		middle: Property to return the middle symbol or its alias.
+		last: Property to return the last symbol or its alias.
+		use_alias: Property to get or set the use_alias flag.
+		has_alias: Property to return the status of has_alias flag.
+		identical: Property to check if all symbols are identical.
+	"""
+	__has_alias__ = False
+	__use_alias__ = False
+
+	def __init__(self, *, first: Symbol, middle: Symbol, last: Symbol):
+		"""
+		Initializes the object with first, middle, and last comment symbols.
+		All args must be either strings or tuples of strings.
+
+		Args:
+			first: The comment symbol of the first line of the license header block
+			middle: The comment symbol of the next lines of the license header block
+			last: The comment symbol of the last line of the license header block
+		"""
+		all_tuples = all([isinstance(x, tuple) for x in (first, middle, last)])
+		all_strings = all([isinstance(x, str) for x in (first, middle, last)])
+
+		if not all_tuples and not all_strings:
+			raise TypeError("All arguments must be either strings or tuples.")
+
+		self.__sym1__ = first if all_tuples else (first, first)
+		self.__sym2__ = middle if all_tuples else (middle, middle)
+		self.__sym3__ = last if all_tuples else (last, last)
+		self.__has_alias__ = all_tuples
+
+	@property
+	def first(self) -> str:
+		return self.__sym1__[1 if self.use_alias else 0]
+
+	@property
+	def middle(self) -> str:
+		return self.__sym2__[1 if self.use_alias else 0]
+
+	@property
+	def last(self) -> str:
+		return self.__sym3__[1 if self.use_alias else 0]
+
+	@property
+	def use_alias(self) -> bool:
+		return self.__use_alias__
+
+	@use_alias.setter
+	def use_alias(self, value) -> None:
+		self.__use_alias__ = value
+
+	@property
+	def has_alias(self) -> bool:
+		return self.__has_alias__
+
+	@property
+	def identical(self) -> bool:
+		return self.first == self.middle == self.last
 
 
-class HeaderData(ABC, BaseModel):
+class HeaderData:
 	symbols: CommentSymbols
 	extensions: list[str]
-	text: str = ''
+	template = [
+		"{title}",
+		"",
+		"Copyright (c) {year}, {holder}",
+		"",
+		"The contents of this file are subject to the terms and conditions defined in the License.",
+		"You may not use, modify, or distribute this file except in compliance with the License.",
+		"",
+		"SPDX-License-Identifier: {spdx_id}"
+	]
+	text: str = ''  # The license header text
 
 
 class HashSymbolHeaderData(HeaderData):
-	symbols: CommentSymbols = CommentSymbols('#', '#', '#')
-	extensions: list[str] = [
+	symbols = CommentSymbols(
+		first='#',
+		middle='#',
+		last='#'
+	)
+	extensions = [
 		".py", ".pyw", ".pyx", ".pxd", ".pxi", ".pyi",
 		".rb", ".rbw",
 		".pl", ".pm", ".t", ".pod",
@@ -53,8 +126,12 @@ class HashSymbolHeaderData(HeaderData):
 
 
 class StarSymbolHeaderData(HeaderData):
-	symbols: CommentSymbols = CommentSymbols('/*', ' *', ' */')
-	extensions: list[str] = [
+	symbols = CommentSymbols(
+		first=('/*', '//'),
+		middle=(' *', '//'),
+		last=(' */', '//')
+	)
+	extensions = [
 		".c", ".h",
 		".cpp", ".hpp", ".cc", ".cxx", ".hxx",
 		".cs",
@@ -71,20 +148,6 @@ class StarSymbolHeaderData(HeaderData):
 		".less",
 		".scala",
 		".groovy", ".gvy", ".gy", ".gsh"
-	]
-
-
-@dataclass(frozen=True)
-class HeaderTemplate:
-	text = [
-		"{title}",
-		"",
-		"Copyright (c) {year}, {holder}",
-		"",
-		"The contents of this file are subject to the terms and conditions defined in the License.",
-		"You may not use, modify, or distribute this file except in compliance with the License.",
-		"",
-		"SPDX-License-Identifier: {spdx_id}"
 	]
 
 
@@ -107,13 +170,12 @@ class LicenseHeader:
 			config: Configuration object that specifies the header details.
 		"""
 		self.__headers__ = list()
-		template = HeaderTemplate()
 		indent = config.spaces * ' '
 
-		for obj in [StarSymbolHeaderData(), HashSymbolHeaderData()]:
+		for obj in [StarSymbolHeaderData, HashSymbolHeaderData]:
 			header = [obj.symbols.first]
 
-			for line in template.text:
+			for line in obj.template:
 				header.append(obj.symbols.middle + indent + line)
 			header.append(obj.symbols.last + '\n')
 
@@ -139,10 +201,11 @@ class LicenseHeader:
 		if not path.is_file():
 			return
 
-		header: HeaderData | None = None
+		header: type[HeaderData] | None = None
 		for obj in self.__headers__:
 			if path.suffix in obj.extensions:
 				header = obj
+				break
 
 		if not header:
 			return
@@ -153,13 +216,17 @@ class LicenseHeader:
 		if content and content[0].startswith('#!'):
 			shebang_line = content.pop(0) + '\n'
 
+		has_header = content[0].startswith(header.symbols.first)
+		if not has_header and header.symbols.has_alias:
+			header.symbols.use_alias = True
+
 		if content[0].startswith(header.symbols.first):
 			end = 0
-			if isinstance(header, HashSymbolHeaderData):
+			if header.symbols.identical:
 				for i, line in enumerate(content):
 					if line.startswith(header.symbols.first):
 						end += 1
-			elif isinstance(header, StarSymbolHeaderData):
+			else:
 				for i, line in enumerate(content):
 					if line.startswith(header.symbols.last):
 						end += 1
