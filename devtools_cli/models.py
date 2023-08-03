@@ -8,49 +8,15 @@
 #
 #   SPDX-License-Identifier: MIT
 #
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from abc import ABC, abstractmethod
-from rich.pretty import pprint
-from rich import print
-from typing import TypeVar
 
-__all__ = ["FilterModel", "FilterModelTypeHint", "ConfigModel", "ConfigModelTypeHint"]
+__all__ = ["ConfigModel", "ConfigSection"]
 
 
-class FilterModel(BaseModel, extra='allow'):
-	"""
-	FilterModel extends Pydantic's BaseModel with the `to_dict` method and the
-	`extra='allow'` parameter allows fields that are not specified in the model definition.
-	"""
-
-	def __init__(self, **data):
-		try:
-			super().__init__(**data)
-		except ValidationError:
-			model = self.__class__.__name__
-			print('-' * 60)
-			print("[bold red]ERROR![/bold red] [red]A data object has failed Pydantic's model validation.")
-			print(f"Data object being validated against the [deep_sky_blue1]'{model}'[/deep_sky_blue1] model:")
-			pprint(data, expand_all=True)
-			print()
-			raise SystemExit()
-
-	def to_dict(self) -> dict:
-		"""
-		Converts the model instance into a dictionary. Only fields specified
-		in the model's annotations are included in the returned dictionary.
-		"""
-		fields = set(self.__annotations__.keys())
-		return self.model_dump(include=fields, warnings=False)
-
-
-FilterModelTypeHint = TypeVar('FilterModelTypeHint', bound=FilterModel)
-
-
-class ConfigModel(ABC, FilterModel):
+class ConfigModel(ABC, BaseModel):
 	"""
 	An abstract base class representing a configuration model.
-
 	This class serves as a template for creating specific configuration models,
 	providing an interface for default value management and indicating if an object
 	instance has been created with default values.
@@ -63,22 +29,41 @@ class ConfigModel(ABC, FilterModel):
 	Properties:
 		is_default: Returns True if an instance was created with default values.
 	"""
+	__is_default__: bool
+
 	def __init__(self, **data):
+		is_default = False
 		if not data:
 			data = self.__defaults__()
-			data["__is_default__"] = True
+			is_default = True
 		super().__init__(**data)
-
-	@property
-	def is_default(self) -> bool:
-		if hasattr(self, '__is_default__'):
-			return True
-		return False
+		self.__is_default__ = is_default
 
 	@staticmethod
 	@abstractmethod
 	def __defaults__() -> dict:
 		pass
 
+	@property
+	def is_default(self) -> bool:
+		return self.__is_default__
 
-ConfigModelTypeHint = TypeVar('ConfigModelTypeHint', bound=ConfigModel)
+
+class ConfigSection(ConfigModel):
+	"""
+	This abstract base class represents individual configuration sections.
+
+	Each subclass must implement the 'section' property to specify the section name.
+	"""
+	def __init__(self, **data):
+		if data and self.section in data:
+			data = data[self.section]
+		super().__init__(**data)
+
+	@property
+	@abstractmethod
+	def section(self) -> str:
+		"""
+		The name of the section key in the top level of the config JSON file.
+		"""
+		pass

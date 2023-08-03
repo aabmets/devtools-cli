@@ -9,18 +9,20 @@
 #   SPDX-License-Identifier: MIT
 #
 import orjson
-from rich import print
 from pathlib import Path
-from typing import Any, Callable
-from pydantic import ValidationError
+from typing import Any, Callable, Literal
+from pydantic import BaseModel, ValidationError
 from orjson import JSONDecodeError, JSONEncodeError
+from rich.prompt import Confirm
+from rich.pretty import pprint
+from rich import print
 from .models import *
 
 GLOBAL_DATA_DIR = ".devtools-cli"
 LOCAL_CONFIG_FILE = ".devtools"
 
 __all__ = [
-	"io_error_pretty_printer",
+	"error_printer",
 	"get_data_storage_path",
 	"find_local_config_file",
 	"read_local_config_file",
@@ -30,29 +32,54 @@ __all__ = [
 ]
 
 
-def io_error_pretty_printer(func: Callable) -> Callable:
+def error_printer(func: Callable) -> Callable:
 	def closure(*args, **kwargs) -> Any:
 		try:
 			return func(*args, **kwargs)
-		except (OSError, JSONDecodeError, JSONEncodeError, ValidationError) as ex:
+		except (JSONDecodeError, JSONEncodeError) as ex:
+			print(ex)
+		except ValidationError as ex:
+			obj = orjson.loads(ex.json())
+			part1, part2 = "ERROR! A data object has failed ", " model validation."
+			print('-' * len(part1 + f"'{ex.title}'" + part2))
+			print(f"[bold red]{part1}[deep_sky_blue1]'{ex.title}'[bold red]{part2}")
+			choice = Confirm.ask("Do you want to read the ValidationError details?")
+			if choice is True:
+				if isinstance(obj, list):
+					[pprint(x) for x in obj]
+				else:
+					pprint(obj)
+			print()
+			raise SystemExit()
+		except OSError as ex:
 			print(ex)
 			raise SystemExit()
 	return closure
 
 
-def check_model_type(arg: Any, expect: str) -> None:
+def check_model_type(obj: Any, cmp: Any, expect: Literal['class', 'object']) -> None:
 	match expect:
 		case 'class':
-			if not issubclass(arg, FilterModel):
+			if not isinstance(obj, type):
 				raise TypeError(
-					f"Expected a subclass of FilterModel, "
-					f"but received a '{arg.__name__}' instead."
+					f"Expected a subclass of '{cmp.__name__}', but received "
+					f"an instance of '{obj.__class__.__name__}' instead."
+				)
+			elif not issubclass(obj, cmp):
+				raise TypeError(
+					f"Expected a subclass of '{cmp.__name__}', but "
+					f"received class '{obj.__name__}' instead."
 				)
 		case 'object':
-			if not isinstance(arg, FilterModel):
+			if isinstance(obj, type):
 				raise TypeError(
-					f"Expected an instance of FilterModel, "
-					f"but received a '{type(arg)}' instead."
+					f"Expected an instance of '{cmp.__name__}' subclass, "
+					f"but received class '{obj.__name__}' instead."
+				)
+			if not isinstance(obj, cmp):
+				raise TypeError(
+					f"Expected an instance of {cmp.__name__} subclass, "
+					f"but received '{obj.__class__.__name__}' instead."
 				)
 		case _:
 			raise ValueError(
@@ -90,112 +117,111 @@ def get_data_storage_path(subdir='', filename='', create=False) -> Path:
 	return data_path
 
 
-def find_local_config_file() -> Path:
+def find_local_config_file(*, init_cwd: bool) -> Path | None:
 	"""
 	Find the local configuration file.
 
-	This function searches for a local configuration file starting
-	from the current directory and going up to the root directory.
-	If the file is not found, it creates one in the current directory.
+	This function searches for a local configuration file starting from the current working
+	directory and going up to the root directory. If the file is not found and the `init_cwd`
+	keyword argument is True, a new config file is created in the current working directory.
 
 	Returns:
-		A pathlib.Path object representing the path to the local configuration file.
+		Either None, if the file is not found and `init_cwd` is False, or an instance
+		of `pathlib.Path` representing the path to the local configuration file.
 	"""
 	current_path = Path.cwd()
 	root = Path(current_path.parts[0])
+
 	while current_path != root:
 		config_path = current_path / LOCAL_CONFIG_FILE
 		if config_path.exists():
 			return config_path
 		current_path = current_path.parent
-	config_path = Path.cwd() / LOCAL_CONFIG_FILE
-	config_path.touch(exist_ok=True)
-	return config_path
+
+	if init_cwd:
+		config_path = Path.cwd() / LOCAL_CONFIG_FILE
+		config_path.touch(exist_ok=True)
+		return config_path
 
 
-@io_error_pretty_printer
-def read_local_config_file(model_cls: type[FilterModelTypeHint], section: str = None) -> FilterModelTypeHint:
+@error_printer
+def read_local_config_file(model_cls: type[ConfigSection]) -> ConfigSection:
 	"""
-	Reads and parses a local config file (expected to be JSON), filters it by
-	a given section (optional), and models the data using a provided class.
-	If the file doesn't exist, it is created in the current working directory.
+	Reads and parses a local config file into an instance of `ConfigSection`.
 
 	Args:
-		model_cls: A subclass of `FilterModel` used to model the parsed data.
-		section: Section of the file to parse. If None, the entire file is used.
+		model_cls: A subclass of `ConfigSection` used to model the parsed data.
 
 	Returns:
-		FilterModel: Instance of `model_cls` initialized with the parsed data.
+		ConfigSection: Instance of `model_cls` initialized with the parsed data.
 
 	Raises:
-		TypeError: If the `model_cls` arg is not a subclass of `FilterModel`.
+		TypeError: If the `model_cls` arg is not a subclass of `ConfigSection`.
 		JSONDecodeError: If the file contents cannot be parsed into an object.
 		ValidationError: If the loaded data fails Pydantic model validation.
 		IOError: If there's a problem reading from the local config file.
 	"""
-	check_model_type(model_cls, expect="class")
-	path = find_local_config_file()
+	check_model_type(model_cls, ConfigModel, expect="class")
 
-	with open(path, 'rb') as file:
-		data = file.read() or b'{}'
+	if path := find_local_config_file(init_cwd=False):
+		with open(path, 'rb') as file:
+			data = file.read() or b'{}'
 		data = orjson.loads(data)
-
-		if section and isinstance(section, str):
-			data = data.get(section, {})
-
+		if not isinstance(data, dict):
+			data = dict()
 		return model_cls(**data)
+	return model_cls()
 
 
-@io_error_pretty_printer
-def write_local_config_file(model_obj: FilterModelTypeHint, section: str = None) -> None:
+@error_printer
+def write_local_config_file(model_obj: ConfigSection) -> None:
 	"""
 	Serializes and writes a given configuration to a local file.
-
-	Updates the specified section if provided, otherwise overwrites the whole file.
 	If the file doesn't exist, it is created in the current working directory.
 
 	Args:
-		model_obj: A FilterModel instance.
-		section: Optional section to update, overwrites file by default.
+		model_obj: An instance of `ConfigSection` subclass.
 
 	Raises:
-		TypeError: If `model_obj` isn't an instance of FilterModel.
+		TypeError: If `model_obj` isn't an instance of `ConfigModel`.
 		IOError: If there's a problem writing to the local config file.
 		JSONEncodeError: If config can't be serialized.
 	"""
-	check_model_type(model_obj, expect="object")
-	to_dict, path = model_obj.to_dict, find_local_config_file()
+	check_model_type(model_obj, ConfigSection, expect="object")
+	path = find_local_config_file(init_cwd=True)
 
-	if section and isinstance(section, str):
-		data = read_local_config_file(FilterModel)
-		setattr(data, section, model_obj)
-		to_dict = data.model_dump
+	with open(path, 'rb') as file:
+		data = file.read() or b'{}'
+
+	data = orjson.loads(data)
+	dump = model_obj.model_dump(warnings=False)
+	data[model_obj.section] = dump
+	dump = orjson.dumps(data, option=orjson.OPT_INDENT_2)
 
 	with open(path, 'wb') as file:
-		dump = orjson.dumps(to_dict(), option=orjson.OPT_INDENT_2)
 		file.write(dump)
 
 
-@io_error_pretty_printer
-def read_file_into_model(path: Path, model_cls: type[FilterModelTypeHint]) -> FilterModelTypeHint:
+@error_printer
+def read_file_into_model(path: Path, model_cls: type[BaseModel]) -> BaseModel:
 	"""
-	Loads JSON data from a file into an instance of a FilterModel subclass.
+	Loads JSON data from a file into a Pydantic model.
 
 	Args:
-		path: An instance of pathlib.Path.
-		model_cls: A subclass of the FilterModel.
+		path: An instance of `pathlib.Path`.
+		model_cls: A subclass of Pydantic's `BaseModel`.
 
 	Returns:
-		Instance of `model_cls` populated with data.
+		An instance of `model_cls` populated with data.
 
 	Raises:
 		ValidationError. If the loaded data fails Pydantic model validation.
 		FileNotFoundError: If the path doesn't exist or isn't a file.
-		TypeError: If the `path` arg is not an instance of pathlib.Path
+		TypeError: If the `path` arg is not an instance of `pathlib.Path`
 			or the `model_cls` arg is not a subclass of `FilterModel`.
 		IOError: If there's a problem reading from the data file.
 	"""
-	check_model_type(model_cls, expect="class")
+	check_model_type(model_cls, BaseModel, expect="class")
 
 	if not path or not isinstance(path, Path):
 		raise TypeError("The `path` arg must be an instance of pathlib.Path.")
@@ -203,35 +229,36 @@ def read_file_into_model(path: Path, model_cls: type[FilterModelTypeHint]) -> Fi
 		raise FileNotFoundError("Path doesn't exist or isn't a file.")
 
 	with open(path, 'rb') as file:
-		data = orjson.loads(file.read())
-		return model_cls(**data)
+		data = file.read() or b'{}'
+
+	data = orjson.loads(data)
+	return model_cls(**data)
 
 
-@io_error_pretty_printer
-def write_model_into_file(path: Path, model_obj: FilterModelTypeHint) -> None:
+@error_printer
+def write_model_into_file(path: Path, model_obj: BaseModel) -> None:
 	"""
-	Dumps the data of a FilterModel instance into a JSON file.
+	Dumps an instance of a Pydantic's model into a JSON file.
 
 	Args:
-		path: An instance of pathlib.Path.
-		model_obj: An instance of a subclass of FilterModel.
+		path: An instance of `pathlib.Path`.
+		model_obj: An instance of a Pydantic's model.
 
 	Raises:
 		FileNotFoundError: If the path exists and isn't a file.
-		TypeError: If the `path` arg is not an instance of pathlib.Path
-			or the `model_obj` arg is not an instance of `FilterModel`.
+		TypeError: If the `path` arg is not an instance of `pathlib.Path`
+			or the `model_obj` arg is not an instance of `BaseModel`.
 		IOError: If there's a problem writing to the data file.
 	"""
-	check_model_type(model_obj, expect="object")
+	check_model_type(model_obj, BaseModel, expect="object")
 
 	if not path or not isinstance(path, Path):
 		raise TypeError("The `path` arg must be an instance of pathlib.Path.")
 	if path.exists() and not path.is_file():
 		raise FileNotFoundError("Path exists, but isn't a file.")
 
+	dump = model_obj.model_dump(warnings=False)
+	data = orjson.dumps(dump, option=orjson.OPT_INDENT_2)
+
 	with open(path, 'wb') as file:
-		data = orjson.dumps(
-			model_obj.to_dict(),
-			option=orjson.OPT_INDENT_2
-		)
 		file.write(data)
