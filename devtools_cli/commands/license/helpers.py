@@ -25,8 +25,7 @@ __all__ = [
 	"write_licenses_to_storage",
 	"read_license_metadata",
 	"ident_to_license_filepath",
-	"write_local_license_file",
-	"apply_license"
+	"write_local_license_file"
 ]
 
 GH_API_REPO_TREE_TOP = "https://api.github.com/repos/github/choosealicense.com/git/trees/gh-pages"
@@ -242,22 +241,3 @@ def write_local_license_file(config_path: Path, ident: str) -> None:
 		path = config_path.parent / LICENSE_FILENAME
 		with open(path, 'w') as file:
 			file.write(data.full_text)
-
-
-def apply_license(folder_path, license_lines):
-	license_text = "\n".join(license_lines)
-	for py_file in folder_path.rglob('*.py'):
-		content = py_file.read_text().splitlines()
-		current_header = content[:len(license_lines)]
-		if current_header == license_lines:
-			print("skipping")
-			continue
-		if content and content[0].startswith('#'):
-			for i, line in enumerate(content):
-				if not line.startswith('#'):
-					break
-			else:
-				i = len(content)
-			content = content[i:]
-		content = license_text + "\n" + "\n".join(content)
-		py_file.write_text(content)

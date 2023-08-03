@@ -8,8 +8,8 @@
 #
 #   SPDX-License-Identifier: MIT
 #
-from pydantic import Field, AliasChoices
-from devtools_cli.models import FilterModel, ConfigModel
+from pydantic import BaseModel, Field, AliasChoices
+from devtools_cli.models import ConfigModel, ConfigSection
 
 __all__ = [
 	"GitHubRepoLeaf",
@@ -17,33 +17,33 @@ __all__ = [
 	"LicenseListEntry",
 	"LicenseMetadata",
 	"LicenseDetails",
-	"HeaderConfig",
+	"LicenseConfigHeader",
 	"LicenseConfig"
 ]
 
 
-class GitHubRepoLeaf(FilterModel):
+class GitHubRepoLeaf(BaseModel):
 	path: str = ''
 	type: str = ''
 	url: str = ''
 
 
-class GitHubResponse(FilterModel):
+class GitHubResponse(BaseModel):
 	tree: list[GitHubRepoLeaf]
 
 
-class LicenseListEntry(FilterModel):
+class LicenseListEntry(BaseModel):
 	index_id: str
 	spdx_id: str = Field(validation_alias=AliasChoices("spdx-id", "spdx_id"))
 	title: str
 
 
-class LicenseMetadata(FilterModel):
+class LicenseMetadata(BaseModel):
 	ident_map: dict[str, str]
 	lic_list: list[LicenseListEntry]
 
 
-class LicenseDetails(FilterModel):
+class LicenseDetails(BaseModel):
 	title: str
 	spdx_id: str = Field(validation_alias=AliasChoices("spdx-id", "spdx_id"))
 	index_id: str
@@ -55,7 +55,7 @@ class LicenseDetails(FilterModel):
 	full_text: str
 
 
-class HeaderConfig(ConfigModel):
+class LicenseConfigHeader(ConfigModel):
 	title: str
 	year: str
 	holder: str
@@ -73,8 +73,8 @@ class HeaderConfig(ConfigModel):
 		}
 
 
-class LicenseConfig(ConfigModel):
-	header: HeaderConfig
+class LicenseConfig(ConfigSection):
+	header: LicenseConfigHeader
 	include_paths: list[str]
 	exclude_paths: list[str]
 	filename: str
@@ -82,8 +82,12 @@ class LicenseConfig(ConfigModel):
 	@staticmethod
 	def __defaults__() -> dict:
 		return {
-			"header": HeaderConfig(),
+			"header": LicenseConfigHeader(),
 			"include_paths": list(),
 			"exclude_paths": list(),
 			"filename": "DEFAULT"
 		}
+
+	@property
+	def section(self) -> str:
+		return 'license'
