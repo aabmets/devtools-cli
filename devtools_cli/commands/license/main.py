@@ -121,6 +121,8 @@ def cmd_apply(
 		config.header.oss = True
 
 	write_local_config_file(config)
+	write_local_license_file(config)
+
 	header = LicenseHeader(config.header)
 	for target in targets:
 		for path in target.rglob('**/*.*'):

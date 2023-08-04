@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable, Iterator
 from devtools_cli.utils import *
 from .models import *
+from .header import *
 
 __all__ = [
 	"github_repo_tree",
@@ -227,18 +228,17 @@ def ident_to_license_filepath(ident: str) -> Path | None:
 					return Path(v)
 
 
-def write_local_license_file(config_path: Path, ident: str) -> None:
+def write_local_license_file(config: LicenseConfig) -> None:
 	"""
 	This function writes the full text of a specified license to a local file
 	by retrieving the file path of the license based on a provided identity,
-	reading the LicenseDetails object from that path, and then writing the
+	reading the `LicenseDetails` object from that path, and then writing the
 	full text of the license to a file located in the same directory as the
 	local configuration file.
 
 	Args:
-		config_path: The path to a configuration file.
-			The license file will be written to a file in the same directory.
-		ident: The identity of the license, either an index ID or an SPDX ID.
+		config: An instance of `LicenseConfig`, which determines
+			the content and the location of the license file.
 
 	Raises:
 		ValidationError. If the loaded data fails Pydantic model validation.
@@ -246,8 +246,18 @@ def write_local_license_file(config_path: Path, ident: str) -> None:
 		IOError: If there's a problem reading the metadata file
 			or writing the local license file.
 	"""
-	if path := ident_to_license_filepath(ident):
-		data = read_file_into_model(path, LicenseDetails)
-		path = config_path.parent / LICENSE_FILENAME
-		with open(path, 'w') as file:
-			file.write(data.full_text)
+	config_file = find_local_config_file(init_cwd=False)
+	full_text = ''
+
+	if path := ident_to_license_filepath(config.header.spdx_id):
+		details: LicenseDetails = read_file_into_model(path, LicenseDetails)
+		full_text = details.full_text
+	elif config.header.oss is False:
+		full_text = '\n'.join(PrprTemplate.template) + '\n'
+		full_text = full_text.format(
+			year=config.header.year,
+			holder=config.header.holder
+		)
+	path = config_file.parent / LICENSE_FILENAME
+	with open(path, 'w') as file:
+		file.write(full_text)
