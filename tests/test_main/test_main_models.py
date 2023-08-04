@@ -1,3 +1,13 @@
+#
+#   MIT License
+#
+#   Copyright (c) 2023, Mattias Aabmets
+#
+#   The contents of this file are subject to the terms and conditions defined in the License.
+#   You may not use, modify, or distribute this file except in compliance with the License.
+#
+#   SPDX-License-Identifier: MIT
+#
 import pytest
 from devtools_cli.models import *
 
@@ -36,7 +46,6 @@ class ConfigSectionSubclass(ConfigSection):
 		return {"foo": "bar"}
 
 
-# Tests begin here
 def test_config_section_is_default():
 	c = ConfigSectionSubclass()
 	assert c.is_default is True

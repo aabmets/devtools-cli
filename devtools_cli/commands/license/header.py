@@ -1,11 +1,11 @@
 #
 #   MIT License
-#
+#   
 #   Copyright (c) 2023, Mattias Aabmets
-#
+#   
 #   The contents of this file are subject to the terms and conditions defined in the License.
 #   You may not use, modify, or distribute this file except in compliance with the License.
-#
+#   
 #   SPDX-License-Identifier: MIT
 #
 from pathlib import Path
@@ -276,7 +276,7 @@ class LicenseHeader:
 
 			content = content[end:]
 
-		content = '\n'.join(content).lstrip() + '\n'
+		content = '\n'.join(content).lstrip() + ('\n' if content else '')
 		content = shebang_line + header.text + content
 
 		path.write_text(content)
