@@ -43,3 +43,44 @@ typer = { extras = ["all"], version = "^0.9.0" }
 
 [tool.poetry.scripts]
 devtools = "devtools_cli.main:app"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+pytest-asyncio = "^0.21.1"
+coverage = "^7.2.7"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+console_output_style = "count"
+filterwarnings = ["ignore::DeprecationWarning"]
+testpaths = ["tests"]
+addopts = [
+    "--cov=devtools_cli",
+    "--cov-report=html",
+    "--no-cov-on-fail",
+    "--import-mode=importlib"
+]
+
+[tool.coverage.run]
+branch = true
+source = ["devtools_cli/*"]
+
+[tool.coverage.report]
+#fail_under = 90
+skip_empty = true
+ignore_errors = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@abstractmethod"
+]
+
+[tool.coverage.html]
+directory = ".htmlcov"
