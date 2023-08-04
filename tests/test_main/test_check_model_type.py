@@ -10,6 +10,10 @@ class MySubClass(MyClass):
 	pass
 
 
+class NotSubClass:
+	pass
+
+
 def test_check_model_type_class():
 	obj = MyClass
 	cmp = MyClass
@@ -24,6 +28,11 @@ def test_check_model_type_class():
 	check_model_type(obj, cmp, 'class')  # must not raise
 
 	obj = MyClass()
+	with pytest.raises(TypeError):
+		check_model_type(obj, cmp, 'class')  # must raise
+
+	obj = MySubClass
+	cmp = NotSubClass
 	with pytest.raises(TypeError):
 		check_model_type(obj, cmp, 'class')  # must raise
 

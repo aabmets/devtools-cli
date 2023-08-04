@@ -59,3 +59,13 @@ def test_read_local_config_file_invalid_data(monkeypatch, tmp_path):
 
 	with pytest.raises(ValidationError):
 		read_local_config_file(ConfigSectionSubclass)
+
+
+def test_read_local_config_file_invalid_contents(monkeypatch, tmp_path):
+	monkeypatch.setattr(Path, 'cwd', lambda: tmp_path)
+
+	with open(tmp_path / LOCAL_CONFIG_FILE, 'w') as f:
+		f.write('[{"key": "value"}]')
+
+	config = read_local_config_file(ConfigSectionSubclass)
+	assert config.is_default is True

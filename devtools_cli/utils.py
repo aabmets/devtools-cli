@@ -44,7 +44,7 @@ def error_printer(func: Callable) -> Callable:
 			part1, part2 = "ERROR! A data object has failed ", " model validation."
 			print('-' * len(part1 + f"'{ex.title}'" + part2))
 			print(f"[bold red]{part1}[deep_sky_blue1]'{ex.title}'[bold red]{part2}")
-			if os.environ.get("PYTEST") is None:
+			if os.environ.get("PYTEST") is None:  # pragma: no cover
 				choice = Confirm.ask("Do you want to read the ValidationError details?")
 				if choice is True:
 					if isinstance(obj, list):
@@ -81,7 +81,7 @@ def check_model_type(obj: Any, cmp: Any, expect: Literal['class', 'object']) -> 
 					f"Expected an instance of {cmp.__name__} subclass, "
 					f"but received '{obj.__class__.__name__}' instead."
 				)
-		case _:
+		case _:  # pragma: no cover
 			raise ValueError(
 				f"Expected a string literal 'class' or 'object' for the "
 				f"'expect' parameter, but received '{expect}' instead."
@@ -226,8 +226,6 @@ def read_file_into_model(path: Path, model_cls: type[BaseModel]) -> BaseModel:
 	"""
 	check_model_type(model_cls, BaseModel, expect="class")
 
-	if not path or not isinstance(path, Path):
-		raise TypeError("The 'path' argument must be an instance of pathlib.Path.")
 	if not path.exists() or not path.is_file():
 		raise FileNotFoundError(f"Path doesn't exist or isn't a file: {path}")
 
@@ -256,8 +254,6 @@ def write_model_into_file(path: Path, model_obj: BaseModel) -> None:
 	"""
 	check_model_type(model_obj, BaseModel, expect="object")
 
-	if not path or not isinstance(path, Path):
-		raise TypeError("The 'path' argument must be an instance of pathlib.Path.")
 	if path.exists() and not path.is_file():
 		raise FileNotFoundError(f"Path exists, but isn't a file: {path}")
 
