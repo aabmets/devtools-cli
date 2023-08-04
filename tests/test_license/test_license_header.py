@@ -99,11 +99,3 @@ def test_oss_license_header_non_file_path():
 
     with pytest.raises(FileNotFoundError):
         OSS_HEADER.apply(non_file_path)
-
-
-def test_prpr_license_header_unsupported_file_type(tmp_path):
-    test_file = tmp_path / "test.unsupported"
-    test_file.write_text("This is a test file.")
-
-    with pytest.raises(NotImplementedError):
-        PRPR_HEADER.apply(test_file)

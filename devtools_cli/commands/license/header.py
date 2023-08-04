@@ -114,7 +114,7 @@ class PrprTemplate:
 		"",
 		"Unauthorized copying, modification, distribution, or publication of this software, ",
 		"via any medium, is strictly prohibited without a written agreement from the copyright holder. ",
-		"This software is proprietary and confidential."
+		"This software is proprietary and confidential.",
 		"",
 		"All rights reserved."
 	]
@@ -239,7 +239,7 @@ class LicenseHeader:
 				break
 
 		if not header:
-			raise NotImplementedError(f"File type not supported: {path.suffix}")
+			return
 
 		content = path.read_text().splitlines()
 

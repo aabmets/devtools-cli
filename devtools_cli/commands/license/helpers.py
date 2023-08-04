@@ -178,21 +178,24 @@ def write_licenses_to_storage(licenses: list[LicenseDetails]) -> None:
 
 def read_license_metadata() -> LicenseMetadata:
 	"""
-	This function retrieves the path to the storage directory where the license
-	metadata is stored and reads this metadata from a file into a LicenseMetadata
-	object, effectively reading the license metadata from storage.
+	This function retrieves the path to the storage directory where the
+	license metadata is stored and reads this metadata from the file into
+	a LicenseMetadata object.
 
 	Returns:
 		An object containing the license metadata read from the file.
 
 	Raises:
-		IOError: If there's a problem reading from the file.
+		ValidationError. If the loaded data fails Pydantic model validation.
+		JSONDecodeError: If the file contents cannot be parsed into an object.
+		IOError: If there's a problem reading from the data file.
 	"""
-	data_path = get_data_storage_path(subdir=LICENSE_DATA_SUBDIR)
-	return read_file_into_model(
-		path=(data_path / METADATA_FILENAME),
-		model_cls=LicenseMetadata
+	path = get_data_storage_path(
+		subdir=LICENSE_DATA_SUBDIR,
+		filename=METADATA_FILENAME,
+		create=True
 	)
+	return read_file_into_model(path, LicenseMetadata)
 
 
 def ident_to_license_filepath(ident: str) -> Path | None:
@@ -208,25 +211,29 @@ def ident_to_license_filepath(ident: str) -> Path | None:
 		The file path of the license if found, otherwise None.
 
 	Raises:
-		IOError: If there's a problem reading the license metadata from the file.
+		ValidationError. If the loaded data fails Pydantic model validation.
+		JSONDecodeError: If the file contents cannot be parsed into an object.
+		IOError: If there's a problem reading from the data file.
 	"""
-	if meta_data := read_license_metadata():
+	data = read_license_metadata()
+	if not data.is_default:
 		if ident.isdecimal():
-			for k, v in meta_data.ident_map.items():
+			for k, v in data.ident_map.items():
 				if k.startswith(ident):
 					return Path(v)
 		else:
-			for k, v in meta_data.ident_map.items():
+			for k, v in data.ident_map.items():
 				if k.lower().endswith(ident.lower()):
 					return Path(v)
 
 
 def write_local_license_file(config_path: Path, ident: str) -> None:
 	"""
-	This function writes the full text of a specified license to a local file by retrieving
-	the file path of the license based on a provided identity, reading the LicenseDetails
-	object from that path, and then writing the full text of the license to a file located
-	in the same directory as the provided configuration file.
+	This function writes the full text of a specified license to a local file
+	by retrieving the file path of the license based on a provided identity,
+	reading the LicenseDetails object from that path, and then writing the
+	full text of the license to a file located in the same directory as the
+	local configuration file.
 
 	Args:
 		config_path: The path to a configuration file.
@@ -234,7 +241,10 @@ def write_local_license_file(config_path: Path, ident: str) -> None:
 		ident: The identity of the license, either an index ID or an SPDX ID.
 
 	Raises:
-		IOError: If there's a problem reading from the license file or writing to the local file.
+		ValidationError. If the loaded data fails Pydantic model validation.
+		JSONDecodeError: If the file contents cannot be parsed into an object.
+		IOError: If there's a problem reading the metadata file
+			or writing the local license file.
 	"""
 	if path := ident_to_license_filepath(ident):
 		data = read_file_into_model(path, LicenseDetails)

@@ -35,7 +35,7 @@ __all__ = [
 
 
 def error_printer(func: Callable) -> Callable:
-	@wraps(func)
+	# @wraps(func)
 	def closure(*args, **kwargs) -> Any:
 		try:
 			return func(*args, **kwargs)
@@ -146,7 +146,7 @@ def find_local_config_file(*, init_cwd: bool) -> Path | None:
 		return config_path
 
 
-# @error_printer
+@error_printer
 def read_local_config_file(model_cls: type[ConfigSection]) -> ConfigSection:
 	"""
 	Reads and parses a local config file into an instance of `ConfigSection`.

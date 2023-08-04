@@ -11,6 +11,7 @@
 import time
 import asyncio
 import webbrowser
+from pathlib import Path
 from typing import List, Any
 from typer import Typer, Option
 from typing_extensions import Annotated
@@ -18,6 +19,7 @@ from rich.progress import Progress
 from rich.console import Console
 from rich.table import Table
 from .helpers import *
+from .header import *
 from .models import *
 from devtools_cli.utils import *
 
@@ -25,36 +27,30 @@ app = Typer(name="license")
 console = Console(soft_wrap=True)
 
 
-YearOpt = Annotated[List[str], Option(
-	"--year", "-Y", show_default=False, help=''
+YearOpt = Annotated[str, Option(
+	"--year", "-y", show_default=False, help=''
 	"The year of the copyright claim."
 )]
 HolderOpt = Annotated[str, Option(
-	'--holder', '-H', show_default=False, help=''
+	'--holder', '-h', show_default=False, help=''
 	"The name of the copyright holder."
 )]
 IdentOpt = Annotated[str, Option(
-	"--id", "-I", show_default=False, help=''
+	"--id", "-i", show_default=False, help=''
 	"Either the numerical index or The SPDX identifier of the "
 	"license from the available licenses list. Case-insensitive. "
 	"Execute \"devtools license --help\" for more info."
 )]
 SpacesOpt = Annotated[int, Option(
-	"--spaces", "-S", show_default=False, help=''
+	"--spaces", "-s", show_default=False, help=''
 	"How many spaces the license header contents will be"
 	"indented with from the comment symbol. Default: 3"
 )]
-InclPathsOpt = Annotated[List[str], Option(
-	"--include", "-i", show_default=False, help=''
+PathsOpt = Annotated[List[str], Option(
+	"--path", "-p", show_default=False, help=''
 	"A subdirectory path in the project directory, which will be "
 	"processed by this script. If provided, only the included "
 	"paths are processed. Option can be used multiple times."
-)]
-ExclPathsOpt = Annotated[List[str], Option(
-	"--exclude", "-e", show_default=False, help=''
-	"A subdirectory path in the project directory, which "
-	"will be excluded from being processed by this script. "
-	"Option can be used multiple times."
 )]
 
 
@@ -62,12 +58,73 @@ ExclPathsOpt = Annotated[List[str], Option(
 def cmd_apply(
 		year: YearOpt = None,
 		holder: HolderOpt = None,
-		incl: InclPathsOpt = None,
-		excl: ExclPathsOpt = None,
+		paths: PathsOpt = None,
 		ident: IdentOpt = None,
-		spaces: SpacesOpt = 3,
+		spaces: SpacesOpt = None,
 ):
-	pass  # TODO
+	"""
+	Applies a license header to any applicable files.
+	"""
+	config: LicenseConfig = read_local_config_file(LicenseConfig)
+	data_path = get_data_storage_path("licenses", create=False) / config.file_name
+	license_path = ident_to_license_filepath(ident or config.header.spdx_id)
+
+	if not ident:
+		if config.is_default:
+			console.print("[bold red]No identifier and no local config, unable to continue.")
+			raise SystemExit()
+		elif config.header.spdx_id != 'none' and not data_path.exists():
+			console.print("[bold red]Local config points to non-existent license data file.")
+			raise SystemExit()
+	elif config.is_default and (not year or not holder):
+		console.print("[bold red]Missing local config requires year and holder arguments.")
+		raise SystemExit()
+	elif ident != '0' and (not license_path or not license_path.exists()):
+		console.print("[bold red]Invalid identifier.")
+		raise SystemExit()
+
+	if year:
+		config.header.year = year
+	if holder:
+		config.header.holder = holder
+	if spaces:
+		config.header.spaces = spaces
+
+	conf_file: Path = find_local_config_file(init_cwd=True)
+	conf_dir = conf_file.parent
+	targets = list()
+
+	if not paths:
+		for path in config.paths:
+			targets.append(conf_dir / path)
+	if paths and '.' not in paths:
+		config.paths = list()
+		for path in paths:
+			targets.append(conf_dir / path)
+			config.paths.append(path)
+	if not targets:
+		config.paths = list()
+		for path in conf_dir.iterdir():
+			if path.is_dir() and not path.name.startswith('.'):
+				targets.append(path)
+
+	if ident == '0':
+		config.file_name = "none"
+		config.header.spdx_id = 'none'
+		config.header.title = 'Proprietary License'
+		config.header.oss = False
+	elif license_path and license_path.exists():
+		details: LicenseDetails = read_file_into_model(license_path, LicenseDetails)
+		config.file_name = details.file_name
+		config.header.spdx_id = details.spdx_id
+		config.header.title = details.title
+		config.header.oss = True
+
+	write_local_config_file(config)
+	header = LicenseHeader(config.header)
+	for target in targets:
+		for path in target.rglob('**/*.*'):
+			header.apply(path)
 
 
 @app.command(name="update", epilog="Example: devtools license update")
@@ -97,6 +154,7 @@ def cmd_update() -> None:
 
 	time.sleep(0.5)
 	console.print(f"Done! Updated {len(filenames)} licenses.\n", style="grey78")
+	time.sleep(0.1)
 
 
 @app.command(name="list", epilog="Example: devtools license list")
@@ -104,15 +162,15 @@ def cmd_list() -> None:
 	"""
 	Prints out the list of available licenses to the console.
 	"""
-	read_local_config_file(LicenseConfig, 'license')
-	metadata = read_license_metadata()
+	meta_data = read_license_metadata()
 
 	table = Table(title="Available Licenses")
-	table.add_column("Index", justify="center", style="sandy_brown", no_wrap=True)
+	table.add_column("Index-ID", justify="left", style="sandy_brown", no_wrap=True)
 	table.add_column("SPDX-Identifier", style="cyan", no_wrap=True)
 	table.add_column("License Name", style="orchid", no_wrap=True)
 
-	for lic in metadata.lic_list:
+	table.add_row('0', '---', 'Proprietary License')
+	for lic in meta_data.lic_list:
 		table.add_row(
 			lic.index_id,
 			lic.spdx_id,
@@ -131,14 +189,22 @@ def cmd_read(ident: IdentOpt = None) -> None:
 	devtools config file. Else, it tries to open the browser to a valid matching identifier.
 	"""
 	if not ident:
-		config = read_local_config_file(LicenseConfig, 'license')
-		filepath = get_data_storage_path("licenses") / config.filename
-		if not filepath:
-			return  # TODO: complain about missing config file
+		config: LicenseConfig = read_local_config_file(LicenseConfig)
+		if config.is_default:
+			console.print("[bold red]No identifier and no local config, unable to continue.")
+			raise SystemExit()
+		filepath = get_data_storage_path("licenses") / config.file_name
+		if not filepath.exists():
+			console.print("[bold red]Local config points to non-existent license data file.")
+			raise SystemExit()
 	else:
+		if ident == '0':
+			console.print("[deep_sky_blue1]The builtin proprietary license does not have a webpage.")
+			raise SystemExit()
 		filepath = ident_to_license_filepath(ident)
 		if not filepath:
-			return  # TODO: complain about bad identifier
+			console.print("[bold red]Invalid identifier.")
+			raise SystemExit()
 
 	details = read_file_into_model(filepath, LicenseDetails)
 	webbrowser.open(details.web_url)

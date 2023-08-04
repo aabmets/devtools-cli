@@ -106,16 +106,14 @@ class LicenseConfigHeader(DefaultModel):
 
 class LicenseConfig(ConfigSection):
 	header: LicenseConfigHeader
-	include_paths: list[str]
-	exclude_paths: list[str]
+	paths: list[str]
 	file_name: str
 
 	@staticmethod
 	def __defaults__() -> dict:
 		return {
 			"header": LicenseConfigHeader(),
-			"include_paths": list(),
-			"exclude_paths": list(),
+			"paths": list(),
 			"file_name": "DEFAULT"
 		}
 
