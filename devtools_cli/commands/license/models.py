@@ -9,7 +9,7 @@
 #   SPDX-License-Identifier: MIT
 #
 from pydantic import BaseModel, Field, AliasChoices
-from devtools_cli.models import ConfigModel, ConfigSection
+from devtools_cli.models import DefaultModel, ConfigSection
 
 __all__ = [
 	"GitHubRepoLeaf",
@@ -32,18 +32,33 @@ class GitHubResponse(BaseModel):
 	tree: list[GitHubRepoLeaf]
 
 
-class LicenseListEntry(BaseModel):
+class LicenseListEntry(DefaultModel):
 	index_id: str
 	spdx_id: str = Field(validation_alias=AliasChoices("spdx-id", "spdx_id"))
 	title: str
 
+	@staticmethod
+	def __defaults__() -> dict:
+		return {
+			"index_id": "[index_id]",
+			"spdx_id": "[spdx_id]",
+			"title": "[title]"
+		}
 
-class LicenseMetadata(BaseModel):
+
+class LicenseMetadata(DefaultModel):
 	ident_map: dict[str, str]
 	lic_list: list[LicenseListEntry]
 
+	@staticmethod
+	def __defaults__() -> dict:
+		return {
+			"ident_map": dict(),
+			"lic_list": list()
+		}
 
-class LicenseDetails(BaseModel):
+
+class LicenseDetails(DefaultModel):
 	title: str
 	spdx_id: str = Field(validation_alias=AliasChoices("spdx-id", "spdx_id"))
 	index_id: str
@@ -54,8 +69,22 @@ class LicenseDetails(BaseModel):
 	web_url: str
 	full_text: str
 
+	@staticmethod
+	def __defaults__() -> dict:
+		return {
+			"title": "[title]",
+			"spdx_id": "[spdx_id]",
+			"index_id": "[index_id]",
+			"permissions": list(),
+			"conditions": list(),
+			"limitations": list(),
+			"file_name": "DEFAULT",
+			"web_url": "DEFAULT",
+			"full_text": "DEFAULT"
+		}
 
-class LicenseConfigHeader(ConfigModel):
+
+class LicenseConfigHeader(DefaultModel):
 	title: str
 	year: str
 	holder: str
@@ -77,7 +106,7 @@ class LicenseConfig(ConfigSection):
 	header: LicenseConfigHeader
 	include_paths: list[str]
 	exclude_paths: list[str]
-	filename: str
+	file_name: str
 
 	@staticmethod
 	def __defaults__() -> dict:
@@ -85,7 +114,7 @@ class LicenseConfig(ConfigSection):
 			"header": LicenseConfigHeader(),
 			"include_paths": list(),
 			"exclude_paths": list(),
-			"filename": "DEFAULT"
+			"file_name": "DEFAULT"
 		}
 
 	@property
