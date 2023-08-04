@@ -9,13 +9,16 @@
 #   SPDX-License-Identifier: MIT
 #
 from pathlib import Path
+from dataclasses import dataclass
 from .models import LicenseConfigHeader
 
 __all__ = [
 	"CommentSymbols",
+	"OSSTemplate",
+	"PrprTemplate",
+	"HashSymbolExtMap",
+	"StarSymbolExtMap",
 	"HeaderData",
-	"HashSymbolHeaderData",
-	"StarSymbolHeaderData",
 	"LicenseHeader"
 ]
 
@@ -90,9 +93,7 @@ class CommentSymbols:
 		return self.first == self.middle == self.last
 
 
-class HeaderData:
-	symbols: CommentSymbols
-	extensions: list[str]
+class OSSTemplate:
 	template = [
 		"{title}",
 		"",
@@ -103,10 +104,23 @@ class HeaderData:
 		"",
 		"SPDX-License-Identifier: {spdx_id}"
 	]
-	text: str = ''  # The license header text
 
 
-class HashSymbolHeaderData(HeaderData):
+class PrprTemplate:
+	template = [
+		"Proprietary License",
+		"",
+		"Copyright (c) {year}, {holder}",
+		"",
+		"Unauthorized copying, modification, distribution, or publication of this software, ",
+		"via any medium, is strictly prohibited without a written agreement from the copyright holder. ",
+		"This software is proprietary and confidential."
+		"",
+		"All rights reserved."
+	]
+
+
+class HashSymbolExtMap:
 	symbols = CommentSymbols(
 		first='#',
 		middle='#',
@@ -125,7 +139,7 @@ class HashSymbolHeaderData(HeaderData):
 	]
 
 
-class StarSymbolHeaderData(HeaderData):
+class StarSymbolExtMap:
 	symbols = CommentSymbols(
 		first=('/*', '//'),
 		middle=(' *', '//'),
@@ -151,6 +165,13 @@ class StarSymbolHeaderData(HeaderData):
 	]
 
 
+@dataclass(frozen=True)
+class HeaderData:
+	symbols: CommentSymbols
+	extensions: list[str]
+	text: str
+
+
 class LicenseHeader:
 	"""
 	This class is responsible for the manipulation of file headers. It is
@@ -159,7 +180,7 @@ class LicenseHeader:
 	properly. It is initialized with a configuration object that defines the
 	specifics of the license header.
 	"""
-	__headers__: [HeaderData]
+	__headers__: list[HeaderData]
 
 	def __init__(self, config: LicenseConfigHeader):
 		"""
@@ -170,22 +191,28 @@ class LicenseHeader:
 			config: Configuration object that specifies the header details.
 		"""
 		self.__headers__ = list()
+		template = (OSSTemplate if config.oss else PrprTemplate).template
 		indent = config.spaces * ' '
 
-		for obj in [StarSymbolHeaderData, HashSymbolHeaderData]:
+		for obj in [HashSymbolExtMap, StarSymbolExtMap]:
 			header = [obj.symbols.first]
 
-			for line in obj.template:
+			for line in template:
 				header.append(obj.symbols.middle + indent + line)
 			header.append(obj.symbols.last + '\n')
 
-			obj.text = '\n'.join(header).format(
+			text = '\n'.join(header).format(
 				title=config.title,
 				year=config.year,
 				holder=config.holder,
 				spdx_id=config.spdx_id
 			)
-			self.__headers__.append(obj)
+			data = HeaderData(
+				symbols=obj.symbols,
+				extensions=obj.extensions,
+				text=text
+			)
+			self.__headers__.append(data)
 
 	def apply(self, path: Path) -> None:
 		"""
@@ -197,18 +224,22 @@ class LicenseHeader:
 
 		Args:
 			path: A file path of type `pathlib.Path` to which the license header should be applied.
+
+		Raises:
+			FileNotFoundError: If the provided path is not a file.
+			NotImplementedError: If the file type is not supported.
 		"""
 		if not path.is_file():
-			return
+			raise FileNotFoundError(f"Cannot apply license header to non-file: {path}")
 
-		header: type[HeaderData] | None = None
+		header: HeaderData | None = None
 		for obj in self.__headers__:
 			if path.suffix in obj.extensions:
 				header = obj
 				break
 
 		if not header:
-			return
+			raise NotImplementedError(f"File type not supported: {path.suffix}")
 
 		content = path.read_text().splitlines()
 

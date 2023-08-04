@@ -5,7 +5,8 @@
       "year": "2023",
       "holder": "Mattias Aabmets",
       "spdx_id": "MIT",
-      "spaces": 3
+      "spaces": 3,
+      "oss": true
     },
     "include_paths": [],
     "exclude_paths": [],

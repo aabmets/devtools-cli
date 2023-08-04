@@ -90,6 +90,7 @@ class LicenseConfigHeader(DefaultModel):
 	holder: str
 	spdx_id: str
 	spaces: int
+	oss: bool
 
 	@staticmethod
 	def __defaults__() -> dict:
@@ -98,7 +99,8 @@ class LicenseConfigHeader(DefaultModel):
 			"year": "[year]",
 			"holder": "[holder]",
 			"spdx_id": "[spdx_id]",
-			"spaces": 3
+			"spaces": 3,
+			"oss": True
 		}
 
 
