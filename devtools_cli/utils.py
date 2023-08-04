@@ -8,11 +8,12 @@
 #
 #   SPDX-License-Identifier: MIT
 #
+import os
 import orjson
 from pathlib import Path
+from functools import wraps
 from typing import Any, Callable, Literal
 from pydantic import BaseModel, ValidationError
-from orjson import JSONDecodeError, JSONEncodeError
 from rich.prompt import Confirm
 from rich.pretty import pprint
 from rich import print
@@ -23,6 +24,7 @@ LOCAL_CONFIG_FILE = ".devtools"
 
 __all__ = [
 	"error_printer",
+	"check_model_type",
 	"get_data_storage_path",
 	"find_local_config_file",
 	"read_local_config_file",
@@ -33,27 +35,25 @@ __all__ = [
 
 
 def error_printer(func: Callable) -> Callable:
+	@wraps(func)
 	def closure(*args, **kwargs) -> Any:
 		try:
 			return func(*args, **kwargs)
-		except (JSONDecodeError, JSONEncodeError) as ex:
-			print(ex)
 		except ValidationError as ex:
 			obj = orjson.loads(ex.json())
 			part1, part2 = "ERROR! A data object has failed ", " model validation."
 			print('-' * len(part1 + f"'{ex.title}'" + part2))
 			print(f"[bold red]{part1}[deep_sky_blue1]'{ex.title}'[bold red]{part2}")
-			choice = Confirm.ask("Do you want to read the ValidationError details?")
-			if choice is True:
-				if isinstance(obj, list):
-					[pprint(x) for x in obj]
-				else:
-					pprint(obj)
+			if os.environ.get("PYTEST") is None:
+				choice = Confirm.ask("Do you want to read the ValidationError details?")
+				if choice is True:
+					if isinstance(obj, list):
+						[pprint(x) for x in obj]
+					else:
+						pprint(obj)
 			print()
-			raise SystemExit()
-		except OSError as ex:
-			print(ex)
-			raise SystemExit()
+			raise
+
 	return closure
 
 
@@ -88,7 +88,7 @@ def check_model_type(obj: Any, cmp: Any, expect: Literal['class', 'object']) -> 
 			)
 
 
-def get_data_storage_path(subdir='', filename='', create=False) -> Path:
+def get_data_storage_path(subdir='', filename='', create=True) -> Path:
 	"""
 	Gets the path for a data storage location.
 
@@ -98,14 +98,16 @@ def get_data_storage_path(subdir='', filename='', create=False) -> Path:
 
 	Args:
 		subdir: Subdirectory under the global data directory.
-		filename: Name of the file under the subdir or global data directory.
-		create: If True, creates the directory and/or file if they don't exist.
+		filename: Name of the file under the `subdir` or the global data directory.
+		create: If True, creates the directory and/or the file if they don't exist.
 			Defaults to False.
 
 	Returns:
-		A pathlib.Path object for the data storage location.
+		A `pathlib.Path` object for the data storage location.
 	"""
 	data_path = Path.home() / GLOBAL_DATA_DIR
+	if create:
+		data_path.mkdir(parents=True, exist_ok=True)
 	if subdir:
 		data_path = data_path / subdir
 		if create:
@@ -144,7 +146,7 @@ def find_local_config_file(*, init_cwd: bool) -> Path | None:
 		return config_path
 
 
-@error_printer
+# @error_printer
 def read_local_config_file(model_cls: type[ConfigSection]) -> ConfigSection:
 	"""
 	Reads and parses a local config file into an instance of `ConfigSection`.
@@ -161,7 +163,7 @@ def read_local_config_file(model_cls: type[ConfigSection]) -> ConfigSection:
 		ValidationError: If the loaded data fails Pydantic model validation.
 		IOError: If there's a problem reading from the local config file.
 	"""
-	check_model_type(model_cls, ConfigModel, expect="class")
+	check_model_type(model_cls, DefaultModel, expect="class")
 
 	if path := find_local_config_file(init_cwd=False):
 		with open(path, 'rb') as file:
@@ -185,7 +187,7 @@ def write_local_config_file(model_obj: ConfigSection) -> None:
 	Raises:
 		TypeError: If `model_obj` isn't an instance of `ConfigModel`.
 		IOError: If there's a problem writing to the local config file.
-		JSONEncodeError: If config can't be serialized.
+		JSONEncodeError: If the model object can't be serialized.
 	"""
 	check_model_type(model_obj, ConfigSection, expect="object")
 	path = find_local_config_file(init_cwd=True)
@@ -217,16 +219,17 @@ def read_file_into_model(path: Path, model_cls: type[BaseModel]) -> BaseModel:
 	Raises:
 		ValidationError. If the loaded data fails Pydantic model validation.
 		FileNotFoundError: If the path doesn't exist or isn't a file.
+		JSONDecodeError: If the file contents cannot be parsed into an object.
 		TypeError: If the `path` arg is not an instance of `pathlib.Path`
-			or the `model_cls` arg is not a subclass of `FilterModel`.
+			or the `model_cls` arg is not a subclass of `BaseModel`.
 		IOError: If there's a problem reading from the data file.
 	"""
 	check_model_type(model_cls, BaseModel, expect="class")
 
 	if not path or not isinstance(path, Path):
-		raise TypeError("The `path` arg must be an instance of pathlib.Path.")
+		raise TypeError("The 'path' argument must be an instance of pathlib.Path.")
 	if not path.exists() or not path.is_file():
-		raise FileNotFoundError("Path doesn't exist or isn't a file.")
+		raise FileNotFoundError(f"Path doesn't exist or isn't a file: {path}")
 
 	with open(path, 'rb') as file:
 		data = file.read() or b'{}'
@@ -246,6 +249,7 @@ def write_model_into_file(path: Path, model_obj: BaseModel) -> None:
 
 	Raises:
 		FileNotFoundError: If the path exists and isn't a file.
+		JSONEncodeError: If the model object can't be serialized.
 		TypeError: If the `path` arg is not an instance of `pathlib.Path`
 			or the `model_obj` arg is not an instance of `BaseModel`.
 		IOError: If there's a problem writing to the data file.
@@ -253,9 +257,9 @@ def write_model_into_file(path: Path, model_obj: BaseModel) -> None:
 	check_model_type(model_obj, BaseModel, expect="object")
 
 	if not path or not isinstance(path, Path):
-		raise TypeError("The `path` arg must be an instance of pathlib.Path.")
+		raise TypeError("The 'path' argument must be an instance of pathlib.Path.")
 	if path.exists() and not path.is_file():
-		raise FileNotFoundError("Path exists, but isn't a file.")
+		raise FileNotFoundError(f"Path exists, but isn't a file: {path}")
 
 	dump = model_obj.model_dump(warnings=False)
 	data = orjson.dumps(dump, option=orjson.OPT_INDENT_2)

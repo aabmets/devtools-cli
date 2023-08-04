@@ -11,15 +11,15 @@
 from pydantic import BaseModel
 from abc import ABC, abstractmethod
 
-__all__ = ["ConfigModel", "ConfigSection"]
+__all__ = ["DefaultModel", "ConfigSection"]
 
 
-class ConfigModel(ABC, BaseModel):
+class DefaultModel(ABC, BaseModel):
 	"""
-	An abstract base class representing a configuration model.
-	This class serves as a template for creating specific configuration models,
-	providing an interface for default value management and indicating if an object
-	instance has been created with default values.
+	An abstract base class representing a default data model.
+	This class serves as a template for creating specific data models, providing
+	an interface for default value management and indicating if an object instance
+	has been created with default values.
 
 	Static methods:
 		__defaults__: An abstract static method that must be implemented by all
@@ -49,7 +49,7 @@ class ConfigModel(ABC, BaseModel):
 		return self.__is_default__
 
 
-class ConfigSection(ConfigModel):
+class ConfigSection(DefaultModel):
 	"""
 	This abstract base class represents individual configuration sections.
 
