@@ -8,9 +8,7 @@
       "spaces": 3,
       "oss": true
     },
-    "paths": [
-      "devtools_cli/commands/test"
-    ],
+    "paths": [],
     "file_name": "mit.json"
   }
 }
