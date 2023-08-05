@@ -262,6 +262,8 @@ class LicenseHeader:
 					for i, line in enumerate(content):
 						if line.startswith(header.symbols.first):
 							end += 1
+							continue
+						break
 				else:
 					for i, line in enumerate(content):
 						if line.startswith(header.symbols.last):
