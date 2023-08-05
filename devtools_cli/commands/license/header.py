@@ -247,34 +247,35 @@ class LicenseHeader:
 		if content and content[0].startswith('#!'):
 			shebang_line = content.pop(0) + '\n'
 
-		has_header = content[0].startswith(header.symbols.first)
-		if not has_header and header.symbols.has_alias:
-			header.symbols.use_alias = True
+		if content:
+			has_header = content[0].startswith(header.symbols.first)
+			if not has_header and header.symbols.has_alias:
+				header.symbols.use_alias = True
 
-		if content[0].startswith(header.symbols.first):
-			end = 0
-			if header.symbols.identical:
-				for i, line in enumerate(content):
-					if line.startswith(header.symbols.first):
-						end += 1
-			else:
-				for i, line in enumerate(content):
-					if line.startswith(header.symbols.last):
-						end += 1
-						break
-					elif (
-						line.startswith(header.symbols.middle) or
-						line.startswith(header.symbols.first) or
-						len(line.strip()) == 0
-					):
-						end += 1
-						continue
+			if content[0].startswith(header.symbols.first):
+				end = 0
+				if header.symbols.identical:
+					for i, line in enumerate(content):
+						if line.startswith(header.symbols.first):
+							end += 1
+				else:
+					for i, line in enumerate(content):
+						if line.startswith(header.symbols.last):
+							end += 1
+							break
+						elif (
+							line.startswith(header.symbols.middle) or
+							line.startswith(header.symbols.first) or
+							len(line.strip()) == 0
+						):
+							end += 1
+							continue
 
-			old_header = '\n'.join(content[:end])
-			if old_header == header.text.strip():
-				return
+				old_header = '\n'.join(content[:end])
+				if old_header == header.text.strip():
+					return
 
-			content = content[end:]
+				content = content[end:]
 
 		content = '\n'.join(content).lstrip() + ('\n' if content else '')
 		content = shebang_line + header.text + content

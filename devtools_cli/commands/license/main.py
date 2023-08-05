@@ -188,8 +188,6 @@ def cmd_list() -> None:
 def cmd_read(ident: IdentOpt = None) -> None:
 	"""
 	Opens the default web browser to a license on the https://choosealicense.com website.
-	If the --id option is not provided, it tries to ascertain the license from the projects
-	devtools config file. Else, it tries to open the browser to a valid matching identifier.
 	"""
 	if not ident:
 		config: LicenseConfig = read_local_config_file(LicenseConfig)
