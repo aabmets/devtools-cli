@@ -43,6 +43,7 @@ typer = { extras = ["all"], version = "^0.9.0" }
 
 [tool.poetry.scripts]
 devtools = "devtools_cli.main:app"
+dtl = "devtools_cli.commands.license.main:app"
 
 [tool.poetry.group.dev]
 optional = true
