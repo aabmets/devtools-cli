@@ -9,10 +9,13 @@
 #   SPDX-License-Identifier: MIT
 #
 from pathlib import Path
+from typing import Literal
 from dataclasses import dataclass
 from .models import LicenseConfigHeader
 
 __all__ = [
+	"SymbolChar",
+	"ApplyResult",
 	"CommentSymbols",
 	"OSSTemplate",
 	"PrprTemplate",
@@ -22,7 +25,8 @@ __all__ = [
 	"LicenseHeader"
 ]
 
-Symbol = str | tuple[str, str]
+SymbolChar = str | tuple[str, str]
+ApplyResult = Literal['unsupported', 'skipped', 'applied']
 
 
 class CommentSymbols:
@@ -43,7 +47,7 @@ class CommentSymbols:
 	__has_alias__ = False
 	__use_alias__ = False
 
-	def __init__(self, *, first: Symbol, middle: Symbol, last: Symbol):
+	def __init__(self, *, first: SymbolChar, middle: SymbolChar, last: SymbolChar):
 		"""
 		Initializes the object with first, middle, and last comment symbols.
 		All args must be either strings or tuples of strings.
@@ -214,7 +218,7 @@ class LicenseHeader:
 			)
 			self.__headers__.append(data)
 
-	def apply(self, path: Path) -> None:
+	def apply(self, path: Path) -> ApplyResult:
 		"""
 		Applies the previously constructed license header to the file at the specified path.
 		If the file already has a license header, the code first checks if it should skip
@@ -239,7 +243,7 @@ class LicenseHeader:
 				break
 
 		if not header:
-			return
+			return 'unsupported'
 
 		content = path.read_text().splitlines()
 
@@ -273,7 +277,7 @@ class LicenseHeader:
 
 				old_header = '\n'.join(content[:end])
 				if old_header == header.text.strip():
-					return
+					return 'skipped'
 
 				content = content[end:]
 
@@ -281,3 +285,4 @@ class LicenseHeader:
 		content = shebang_line + header.text + content
 
 		path.write_text(content)
+		return 'applied'

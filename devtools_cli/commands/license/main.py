@@ -53,6 +53,11 @@ PathsOpt = Annotated[List[str], Option(
 	"processed by this script. If provided, only the included "
 	"paths are processed. Option can be used multiple times."
 )]
+VerboseOpt = Annotated[bool, Option(
+	"--verbose", "-v", show_default=False, help=''
+	"If the details of the operation should be printed to the console."
+	"Default: False"
+)]
 
 
 @app.command(name="apply", epilog="Example: devtools license apply --spdx EUPL-1.2")
@@ -62,6 +67,7 @@ def cmd_apply(
 		paths: PathsOpt = None,
 		ident: IdentOpt = None,
 		spaces: SpacesOpt = None,
+		verbose: VerboseOpt = False,
 ):
 	"""
 	Applies a license header to any applicable files.
@@ -93,21 +99,21 @@ def cmd_apply(
 
 	conf_file: Path = find_local_config_file(init_cwd=True)
 	conf_dir = conf_file.parent
-	targets = list()
+	target_dirs = list()
 
 	if not paths:
 		for path in config.paths:
-			targets.append(conf_dir / path)
+			target_dirs.append(conf_dir / path)
 	if paths and '.' not in paths:
 		config.paths = list()
 		for path in paths:
-			targets.append(conf_dir / path)
+			target_dirs.append(conf_dir / path)
 			config.paths.append(path)
-	if not targets:
+	if not target_dirs:
 		config.paths = list()
 		for path in conf_dir.iterdir():
 			if path.is_dir() and not path.name.startswith('.'):
-				targets.append(path)
+				target_dirs.append(path)
 
 	if ident == '0':
 		config.file_name = "none"
@@ -125,9 +131,13 @@ def cmd_apply(
 	write_local_license_file(config)
 
 	header = LicenseHeader(config.header)
-	for target in targets:
+	results = list()
+	for target in target_dirs:
 		for path in target.rglob('**/*.*'):
-			header.apply(path)
+			if res := header.apply(path):
+				results.append((path, res))
+	if verbose:
+		print_apply_results(results, config, conf_dir)
 
 
 @app.command(name="update", epilog="Example: devtools license update")

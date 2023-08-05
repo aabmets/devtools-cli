@@ -13,6 +13,9 @@ import httpx
 import orjson
 import asyncio
 from pathlib import Path
+from rich.tree import Tree
+from rich.panel import Panel
+from rich.console import Console
 from typing import Callable, Iterator
 from devtools_cli.utils import *
 from .models import *
@@ -26,7 +29,8 @@ __all__ = [
 	"write_licenses_to_storage",
 	"read_license_metadata",
 	"ident_to_license_filepath",
-	"write_local_license_file"
+	"write_local_license_file",
+	"print_apply_results"
 ]
 
 GH_API_REPO_TREE_TOP = "https://api.github.com/repos/github/choosealicense.com/git/trees/gh-pages"
@@ -264,3 +268,69 @@ def write_local_license_file(config: LicenseConfig) -> None:
 	path = config_file.parent / LICENSE_FILENAME
 	with open(path, 'w') as file:
 		file.write(full_text)
+
+
+def print_apply_results(
+		results: list[tuple[Path, ApplyResult]],
+		config: LicenseConfig,
+		conf_dir: Path
+) -> None:
+	top_key = str(conf_dir)
+	main_tree = Tree(f"[bold deep_pink3]{top_key}[/]")
+	tree_map: dict[str, Tree] = dict()
+	tree_map[top_key] = main_tree
+
+	for path, res in results:
+		if res == 'unsupported':
+			continue
+		path = path.relative_to(conf_dir)
+		all_parts = [top_key, *path.parts]
+		subtree = main_tree
+
+		for i, part in enumerate(all_parts):
+			key = '/'.join(all_parts[:i + 1])
+			is_file = Path(key).is_file()
+			if i == len(all_parts) - 1 and is_file:
+				a, b = '[italic dark_goldenrod]', '[italic dark_sea_green4]'
+				part += f" - {a if res == 'skipped' else b}{res}[/]"
+			if key not in tree_map:
+				a, b = '[grey93]', '[deep_sky_blue1]'
+				style = a if is_file else b
+				subtree = subtree.add(f"{style}{part}[/]")
+				tree_map[key] = subtree
+			else:
+				subtree = tree_map[key]
+
+	console = Console()
+	console.print()
+	console.print(Panel.fit(
+		renderable=main_tree,
+		title="Operation Details",
+		subtitle="Operation Details",
+		border_style="deep_sky_blue1",
+	))
+	console.print("[italic bright_black]Note: unsupported filetypes are omitted from the tree view.[/]")
+	console.print()
+
+	apply_totals = 0
+	skip_totals = 0
+	usp_totals = 0
+	usp_types = set()
+
+	for path, res in results:
+		match res:
+			case 'applied':
+				apply_totals += 1
+			case 'skipped':
+				skip_totals += 1
+			case 'unsupported':
+				usp_types.add(path.suffix)
+				usp_totals += 1
+
+	console.print(f"[bold deep_pink3]Operation summary:[/]")
+	console.print(f"Licensed {apply_totals} files under the [chartreuse3]{config.header.title}[/].")
+	console.print(f"Skipped {skip_totals} files which already have the requested license header.")
+	console.print(f"Ignored {usp_totals} files with unsupported [grey85]filetype(s):[/] {list(usp_types)}")
+	console.print()
+	console.print("[italic deep_sky_blue1]Thank you for using devtools![/]")
+	console.print()
