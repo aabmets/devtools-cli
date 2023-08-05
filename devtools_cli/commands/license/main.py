@@ -18,6 +18,7 @@ from typing_extensions import Annotated
 from rich.progress import Progress
 from rich.console import Console
 from rich.table import Table
+from rich.panel import Panel
 from .helpers import *
 from .header import *
 from .models import *
@@ -201,7 +202,8 @@ def cmd_read(ident: IdentOpt = None) -> None:
 			raise SystemExit()
 	else:
 		if ident == '0':
-			console.print("[deep_sky_blue1]The builtin proprietary license does not have a webpage.")
+			text = '\n'.join(PrprTemplate.template)
+			console.print(Panel.fit(text, border_style="deep_sky_blue1"))
 			raise SystemExit()
 		filepath = ident_to_license_filepath(ident)
 		if not filepath:
