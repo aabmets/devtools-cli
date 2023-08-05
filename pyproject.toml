@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "devtools-cli"
-version = "0.1.1"
+version = "0.1.2"
 description = "A toolbox of cross-language utility scripts for efficient software development."
 license = "MIT"
 authors = ["Mattias Aabmets <mattias.aabmets@gmail.com>"]
@@ -12,7 +12,7 @@ readme = "README.md"
 repository = "https://github.com/aabmets/devtools-cli"
 keywords = ["toolbox", "cross-language", "utility", "scripts", "software", "development"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
