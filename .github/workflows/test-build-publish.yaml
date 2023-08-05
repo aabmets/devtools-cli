@@ -1,0 +1,21 @@
+name: CI/CD Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.11
+    permissions:
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v3
+    - run: pip install poetry
+    - run: poetry install
+    - run: poetry run pytest
+    - uses: pypa/gh-action-pypi-publish@release/v1
