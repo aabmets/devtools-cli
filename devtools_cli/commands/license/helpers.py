@@ -258,6 +258,9 @@ def write_local_license_file(config: LicenseConfig) -> None:
 			year=config.header.year,
 			holder=config.header.holder
 		)
+	full_text = full_text.replace('[year]', config.header.year)
+	full_text = full_text.replace('[fullname]', config.header.holder)
+
 	path = config_file.parent / LICENSE_FILENAME
 	with open(path, 'w') as file:
 		file.write(full_text)
