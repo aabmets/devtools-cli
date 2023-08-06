@@ -249,11 +249,13 @@ class LicenseHeader:
 			shebang_line = content.pop(0) + '\n'
 
 		if content:
-			has_header = content[0].startswith(header.symbols.first)
-			if not has_header and header.symbols.has_alias:
-				header.symbols.use_alias = True
+			has_header = False
+			for _ in range(2 if header.symbols.has_alias else 1):
+				has_header = content[0].startswith(header.symbols.first)
+				if not has_header and header.symbols.has_alias:
+					header.symbols.use_alias = not header.symbols.use_alias
 
-			if content[0].startswith(header.symbols.first):
+			if has_header:
 				end = 0
 				if header.symbols.identical:
 					for i, line in enumerate(content):

@@ -8,7 +8,6 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
-import pytest
 from pathlib import Path
 from devtools_cli.commands.license.header import *
 from devtools_cli.commands.license.models import *
@@ -64,7 +63,8 @@ def test_license_header_initialization():
 def test_oss_license_header_apply_star_symbols(tmp_path):
     file_path = tmp_path / "test.js"
     file_path.write_text("CONTENTS")
-    OSS_HEADER.apply(file_path)
+    result = OSS_HEADER.apply(file_path)
+    assert result == 'applied'
 
     text = file_path.read_text().splitlines()
     assert text[0].startswith('/*')
@@ -72,14 +72,16 @@ def test_oss_license_header_apply_star_symbols(tmp_path):
     index = get_end_index(text, STARS)
     assert text[index] == "CONTENTS"
 
-    STARS.use_alias = True
     file_path.write_text("// existing header\nCONTENTS")
-    OSS_HEADER.apply(file_path)
+    result = OSS_HEADER.apply(file_path)
+    assert result == 'applied'
+
+    result = OSS_HEADER.apply(file_path)
+    assert result == 'skipped'
 
     text = file_path.read_text().splitlines()
     assert text[0].startswith('/*')
 
-    STARS.use_alias = False
     index = get_end_index(text, STARS)
     assert text[index] == "CONTENTS"
 
@@ -87,7 +89,8 @@ def test_oss_license_header_apply_star_symbols(tmp_path):
 def test_prpr_license_header_apply_hash_symbols(tmp_path):
     file_path = tmp_path / "test.py"
     file_path.write_text("CONTENTS")
-    PRPR_HEADER.apply(file_path)
+    result = PRPR_HEADER.apply(file_path)
+    assert result == 'applied'
 
     text = file_path.read_text().splitlines()
     assert text[0].startswith('#')
@@ -96,7 +99,11 @@ def test_prpr_license_header_apply_hash_symbols(tmp_path):
     assert text[index] == "CONTENTS"
 
     file_path.write_text("#! usr/bin/python\nCONTENTS")
-    PRPR_HEADER.apply(file_path)
+    result = PRPR_HEADER.apply(file_path)
+    assert result == 'applied'
+
+    result = PRPR_HEADER.apply(file_path)
+    assert result == 'skipped'
 
     text = file_path.read_text().splitlines()
     assert text[0] == "#! usr/bin/python"
@@ -107,5 +114,5 @@ def test_prpr_license_header_apply_hash_symbols(tmp_path):
 def test_oss_license_header_non_file_path():
     non_file_path = Path("non_existing_file.txt")
 
-    with pytest.raises(FileNotFoundError):
-        OSS_HEADER.apply(non_file_path)
+    result = OSS_HEADER.apply(non_file_path)
+    assert result == 'unsupported'
