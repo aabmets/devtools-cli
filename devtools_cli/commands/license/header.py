@@ -221,20 +221,17 @@ class LicenseHeader:
 	def apply(self, path: Path) -> ApplyResult:
 		"""
 		Applies the previously constructed license header to the file at the specified path.
-		If the file already has a license header, the code first checks if it should skip
-		replacing the existing header if it's identical to the new header, otherwise the old
-		license header will be replaced by the new one. The method is designed to properly
-		handle shebang lines and supports various comment symbols depending on the file suffix.
+		If the file already has a license header which is identical to the one being applied,
+		the method returns 'skipped'. If the file does not have a license header or the new
+		header is different from the old, the function returns 'applied'. If the path is
+		invalid, the method returns 'unsupported'. This method properly handles shebang
+		lines and supports various comment symbols depending on the file suffix.
 
 		Args:
-			path: A file path of type `pathlib.Path` to which the license header should be applied.
-
-		Raises:
-			FileNotFoundError: If the provided path is not a file.
-			NotImplementedError: If the file type is not supported.
+			path: An instance of `pathlib.Path` to which the license header should be applied.
 		"""
-		if not path.is_file():
-			raise FileNotFoundError(f"Cannot apply license header to non-file: {path}")
+		if not path or not path.exists() or not path.is_file():
+			return 'unsupported'
 
 		header: HeaderData | None = None
 		for obj in self.__headers__:
