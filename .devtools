@@ -1,4 +1,5 @@
 {
+  "config_file": "C:/Users/Mattias Aabmets/Projects/devtools-cli/.devtools",
   "license": {
     "header": {
       "title": "MIT License",
@@ -10,5 +11,17 @@
     },
     "paths": [],
     "file_name": "mit.json"
+  },
+  "version": {
+    "projects": [
+      {
+        "alias": "cli",
+        "dir_path": ".",
+        "language": "python",
+        "metafile": "pyproject.toml",
+        "version": "0.2.0",
+        "virtual": {}
+      }
+    ]
   }
 }

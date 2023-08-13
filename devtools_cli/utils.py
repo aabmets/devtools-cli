@@ -133,18 +133,29 @@ def find_local_config_file(*, init_cwd: bool) -> Path | None:
 		Either None, if the file is not found and `init_cwd` is False, or an instance
 		of `pathlib.Path` representing the path to the local configuration file.
 	"""
+	def inject_file_path(path: Path):
+		with path.open('r+') as file:
+			content = file.read() or '{}'
+			data = orjson.loads(content)
+		data['config_file'] = str(path).replace('\\', '/')
+		dump = orjson.dumps(data, option=orjson.OPT_INDENT_2)
+		with path.open('wb') as file:
+			file.write(dump)
+
 	current_path = Path.cwd()
 	root = Path(current_path.parts[0])
 
 	while current_path != root:
 		config_path = current_path / LOCAL_CONFIG_FILE
 		if config_path.exists():
+			inject_file_path(config_path)
 			return config_path
 		current_path = current_path.parent
 
 	if init_cwd:
 		config_path = Path.cwd() / LOCAL_CONFIG_FILE
 		config_path.touch(exist_ok=True)
+		inject_file_path(config_path)
 		return config_path
 
 

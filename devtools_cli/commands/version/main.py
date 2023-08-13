@@ -8,11 +8,11 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
-import semver
 from pathlib import Path
+from semver import Version
+from rich.console import Console
 from typer import Typer, Argument, Option
 from typing_extensions import Annotated
-from rich.console import Console
 from .helpers import *
 from .models import *
 from .langs import *
@@ -170,6 +170,8 @@ def cmd_bump(
         suffix: SuffixOpt = '',
         virtual: VirtualOpt = ''
 ):
+    if sum([major, minor, patch]) > 1:
+        console.print("Not allowed to bump multiple version numbers at the same time.")
     if not any([major, minor, patch]):
         patch = True
 
@@ -182,3 +184,27 @@ def cmd_bump(
     if virtual and virtual not in project.virtual:
         console.print("Cannot bump the version of a virtual component which does not exist.")
         raise SystemExit()
+
+    source = project.virtual[virtual] if virtual else project.version
+    ver = Version.parse(source)
+
+    index = [major, minor, patch].index(True)
+    func = [ver.bump_major, ver.bump_minor, ver.bump_patch][index]
+
+    suf = ''
+    if suffix or ver.prerelease:
+        suf = f"-{suffix or ver.prerelease}"
+
+    ver_str = str(func()) + suf
+
+    if not virtual:
+        project.version = ver_str
+    else:
+        project.virtual[virtual] = ver_str
+
+    config_file: Path = find_local_config_file(init_cwd=False)
+    track_dir = config_file.parent / project.dir_path
+    prog_lang = infer_project_lang(track_dir)
+
+    prog_lang.write(track_dir / prog_lang.metafile, ver_str)
+    write_local_config_file(config)
