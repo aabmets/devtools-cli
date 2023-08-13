@@ -56,8 +56,11 @@ class ConfigSection(DefaultModel):
 	Each subclass must implement the 'section' property to specify the section name.
 	"""
 	def __init__(self, **data):
-		if data and self.section in data:
-			data = data[self.section]
+		if data:
+			if self.section in data:
+				data = data[self.section]
+			else:
+				data = self.__defaults__()
 		super().__init__(**data)
 
 	@property

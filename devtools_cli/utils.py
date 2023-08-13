@@ -51,6 +51,8 @@ def error_printer(func: Callable) -> Callable:
 						[pprint(x) for x in obj]
 					else:
 						pprint(obj)
+					raise
+				return ''
 			print()
 			raise
 
