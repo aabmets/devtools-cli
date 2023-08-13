@@ -52,6 +52,7 @@ def test_write_local_config_file_correctly_serializes(tmp_path, monkeypatch):
 
 	with open(tmp_path / LOCAL_CONFIG_FILE, 'rb') as file:
 		data = orjson.loads(file.read())
+		data.pop('config_file')
 	assert data == {'section': {"test_attr": "DEFAULT"}}
 
 

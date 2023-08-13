@@ -48,13 +48,14 @@ def test_read_local_config_file_with_empty_file(monkeypatch, tmp_path):
 
 	config = read_local_config_file(ConfigSectionSubclass)
 	assert isinstance(config, ConfigSectionSubclass)
+	assert config.is_default is True
 
 
 def test_read_local_config_file_with_data(monkeypatch, tmp_path):
 	monkeypatch.setattr(Path, 'cwd', lambda: tmp_path)
 
 	with open(tmp_path / LOCAL_CONFIG_FILE, 'w') as f:
-		f.write('{"test_attr": "value"}')
+		f.write('{"section": {"test_attr": "value"}}')
 
 	config = read_local_config_file(ConfigSectionSubclass)
 	assert isinstance(config, ConfigSectionSubclass)
@@ -67,8 +68,8 @@ def test_read_local_config_file_invalid_data(monkeypatch, tmp_path):
 	with open(tmp_path / LOCAL_CONFIG_FILE, 'w') as f:
 		f.write('{"key": "value"}')
 
-	with pytest.raises(ValidationError):
-		read_local_config_file(ConfigSectionSubclass)
+	config = read_local_config_file(ConfigSectionSubclass)
+	assert config.is_default is True
 
 
 def test_read_local_config_file_invalid_contents(monkeypatch, tmp_path):

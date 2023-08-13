@@ -51,7 +51,7 @@ def test_config_section_is_default():
 	assert c.is_default is True
 	assert c.foo == "bar"
 
-	c = ConfigSectionSubclass(foo="baz")
+	c = ConfigSectionSubclass(test={"foo": "baz"})
 	assert c.is_default is False
 	assert c.foo == "baz"
 
@@ -68,8 +68,8 @@ def test_config_section_with_data():
 
 
 def test_config_section_with_invalid_data():
-	with pytest.raises(ValueError):
-		ConfigSectionSubclass(**{"invalid_section": {"foo": "baz"}})
+	c = ConfigSectionSubclass(**{"invalid_section": {"foo": "baz"}})
+	assert c.is_default is True
 
 
 def test_config_section_property():

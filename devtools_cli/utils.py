@@ -136,11 +136,12 @@ def find_local_config_file(*, init_cwd: bool) -> Path | None:
 	def inject_file_path(path: Path):
 		with path.open('r+') as file:
 			content = file.read() or '{}'
-			data = orjson.loads(content)
-		data['config_file'] = str(path).replace('\\', '/')
-		dump = orjson.dumps(data, option=orjson.OPT_INDENT_2)
-		with path.open('wb') as file:
-			file.write(dump)
+		data = orjson.loads(content)
+		if isinstance(data, dict):
+			data['config_file'] = str(path).replace('\\', '/')
+			dump = orjson.dumps(data, option=orjson.OPT_INDENT_2)
+			with path.open('wb') as file:
+				file.write(dump)
 
 	current_path = Path.cwd()
 	root = Path(current_path.parts[0])
