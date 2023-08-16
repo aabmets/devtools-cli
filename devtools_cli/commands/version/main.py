@@ -10,136 +10,114 @@
 #
 from pathlib import Path
 from semver import Version
+from rich.prompt import Confirm
 from rich.console import Console
-from typer import Typer, Argument, Option
 from typing_extensions import Annotated
+from typer import Typer, Option
 from .helpers import *
 from .models import *
-from .langs import *
 from devtools_cli.utils import *
 
 
-app = Typer(name="version", help="Manages version numbers in project descriptor files.")
+app = Typer(name="version", help="Manages project version number and tracks filesystem changes.")
 console = Console(soft_wrap=True)
 
 
-PathArg = Annotated[str, Argument(
-    show_default=False, help=""
-    "A sub-path to a folder relative to the .devtools config file. If the .devtools config "
-    "file cannot be found, it is created in the current working directory. If not provided, "
-    "the command is applied to the directory of the .devtools config file."
+NameOpt = Annotated[str, Option(
+    '--name', '-n', show_default=False, help=''
+    'A unique name identifier of the trackable component to reference it by.'
 )]
-AliasOpt = Annotated[str, Option(
-    '--alias', '-a', show_default=False, help=""
-    "An alias for the path argument. Allows to reference the path by the alias. "
-    "Mutually exclusive with '--virtual'."
+TargetOpt = Annotated[str, Option(
+    '--target', '-t', show_default=False, help=''
+    'The path to target with tracking, relative to the path of the .devtools config file. '
+    'If not provided, defaults to the location of the .devtools config file. If the config '
+    'file does not exist, a new config file is created in the current working directory.'
 )]
-VirtualOpt = Annotated[str, Option(
-    '--virtual', '-v', show_default=False, help=""
-    "A sub-component inside the tracked project tracked by a virtual version. "
-    "Mutually exclusive with '--alias'."
+IgnoreOpt = Annotated[list[str], Option(
+    '--ignore', '-i', show_default=False, help=''
+    'A path to be ignored relative to the target path. Can be used multiple times.'
 )]
 
 
-@app.command(name="track", epilog="Example: devtools version track components/api --alias api")
-def cmd_track(path: PathArg = '', alias: AliasOpt = '', virtual: VirtualOpt = ''):
+@app.command(name="track", epilog="Example: devtools version track --name app")
+def cmd_track(name: NameOpt, target: TargetOpt = '.', ignore: IgnoreOpt = None):
     """
-    Track a version number in a projects descriptor file.
+    Tracks filesystem changes for a specified component in the project.
+    This command associates a unique name with a target path (file or directory)
+    and optionally sets paths to be ignored during tracking. If the specified name
+    or path is already being tracked, it updates the existing tracking information.
+    Errors will occur if the target path does not exist, if ignored paths are set
+    when the target is a file, or if duplicate names or paths are assigned.
     """
-    if alias and virtual:
-        console.print("Cannot use '--alias' and '--virtual' at the same time.")
-        raise SystemExit()
-
     config_file: Path = find_local_config_file(init_cwd=True)
     config: VersionConfig = read_local_config_file(VersionConfig)
-    track_dir = config_file.parent / path
+    track_path = config_file.parent / target
 
-    metafiles_count = count_lang_metafiles(track_dir)
-    if metafiles_count == 0 and not virtual:
-        console.print(f"The directory '{track_dir}' does not contain a supported project descriptor file.")
+    if not track_path.exists():
+        console.print(f"ERROR! Cannot track a target path which does not exist: '{track_path}'\n")
         raise SystemExit()
-    elif metafiles_count > 1 and not virtual:
-        console.print(f"The directory '{track_dir}' must not contain more than one project descriptor file.")
-        raise SystemExit()
-
-    rel_path = str(track_dir.relative_to(config_file.parent))
-    index, project = find_tracked_project(rel_path or alias, config)
-
-    if index is None and virtual:
-        console.print("Cannot track a virtual component of an untracked project.")
-        raise SystemExit()
-    elif index is not None and virtual in project.virtual:
-        console.print("Cannot track a virtual component that is already being tracked.")
+    elif track_path.is_file() and ignore:
+        console.print(f"ERROR! Cannot set ignored paths when target is a file: '{track_path}'\n")
         raise SystemExit()
 
-    prog_lang = infer_project_lang(track_dir)
-    new_proj = ProjectTracker(
-        dir_path=rel_path,
-        language=prog_lang.name,
-        metafile=prog_lang.metafile,
-        version=prog_lang.read(track_dir / prog_lang.metafile),
-        virtual=dict() if index is None else project.virtual,
-        alias=alias if alias else project.alias
+    index = None
+    for i, entry in enumerate(config.components):
+        if entry.name == name and entry.target != target:
+            console.print(f"ERROR! Cannot assign the same name '{name}' to multiple targets!\n")
+            raise SystemExit()
+        elif entry.target == target and entry.name != name:
+            console.print(f"ERROR! Cannot assign the same target '{target}' to multiple names!\n")
+            raise SystemExit()
+        elif entry.name == name and entry.target == target and entry.ignore == ignore:
+            console.print(f"Nothing to update in the tracked component.\n")
+            raise SystemExit()
+        elif entry.name == name and entry.target == target:
+            index = i
+
+    if track_path.is_file():
+        track_hash = hash_file(track_path)
+    else:
+        track_hash = hash_directory(track_path, ignore)
+
+    comp = TrackedComponent(
+        name=name,
+        target=target,
+        ignore=ignore,
+        hash=track_hash
     )
 
-    for entry in config.projects:
-        if entry.alias == new_proj.alias and entry.dir_path != new_proj.dir_path and not virtual:
-            console.print(f"Cannot assign identical aliases to multiple sub-projects.")
-            raise SystemExit()
-        elif entry.dir_path == new_proj.dir_path and entry.alias == new_proj.alias and not virtual:
-            console.print(f"Nothing to update for the project tracker.")
-            raise SystemExit()
-
     if index is None:
-        config.projects.append(new_proj)
-        msg = f"Successfully tracked project in '{track_dir}'."
+        config.components.append(comp)
+        msg = f"Successfully tracked component: '{name}'.\n"
     else:
-        config.projects[index] = new_proj
-        msg = f"Successfully updated the tracker of '{track_dir}'."
-    if virtual:
-        config.projects[index].virtual[virtual] = "0.0.0"
-        msg = f"Successfully tracked the virtual component '{virtual}' for project in '{track_dir}'."
+        config.components[index] = comp
+        msg = f"Successfully updated the component '{name}'.\n"
 
     write_local_config_file(config)
     console.print(msg)
 
 
-PathOrAliasArg = Annotated[str, Argument(
-    show_default=False, help="Either a path to a project folder relative to the "
-                             ".devtools config file or an alias of a tracked project."
-)]
-
-
-@app.command(name="untrack", epilog="Example: devtools version untrack api")
-def cmd_assign(arg: PathOrAliasArg = '.', virtual: VirtualOpt = ''):
+@app.command(name="untrack", epilog="Example: devtools version untrack --name app")
+def cmd_untrack(name: NameOpt):
     """
-    Untrack a projects descriptor file.
+    Untracks filesystem changes for a specified component in the project.
+    If the specified name is not being tracked, an error will be raised.
     """
     config: VersionConfig = read_local_config_file(VersionConfig)
-    index, project = find_tracked_project(arg, config)
 
-    if index is None or config.is_default:
-        if not virtual:
-            console.print("Cannot untrack an untracked project.")
-        else:
-            console.print("Cannot untrack a virtual component of an untracked project.")
+    index = None
+    for i, entry in enumerate(config.components):
+        if entry.name == name:
+            index = i
+            break
+
+    if index is None:
+        console.print("ERROR! Cannot untrack a non-existing component.\n")
         raise SystemExit()
-    elif virtual and virtual not in project.virtual:
-        console.print(f"Cannot untrack a virtual component which does not exist.")
-        raise SystemExit()
 
-    config_file: Path = find_local_config_file(init_cwd=False)
-    track_dir = config_file.parent / project.dir_path
-
-    if not virtual:
-        config.projects.pop(index)
-        msg = f"Successfully untracked project in '{track_dir}'."
-    else:
-        project.virtual.pop(virtual)
-        msg = f"Successfully untracked virtual component '{virtual}' of project '{track_dir}'."
-
+    config.components.pop(index)
     write_local_config_file(config)
-    console.print(msg)
+    console.print(f"Successfully untracked the component '{name}'.\n")
 
 
 MajorBumpOpt = Annotated[bool, Option(
@@ -152,8 +130,7 @@ MinorBumpOpt = Annotated[bool, Option(
 )]
 PatchBumpOpt = Annotated[bool, Option(
     '--patch', '-p', show_default=False, help=""
-    "Bump the patch version number (the 'Z' in 'X.Y.Z'). X and Y are left untouched. "
-    "If no "
+    "Bump the patch version number (the 'Z' in 'X.Y.Z'). X and Y are left untouched."
 )]
 SuffixOpt = Annotated[str, Option(
     '--suffix', '-s', show_default=False, help=""
@@ -161,50 +138,46 @@ SuffixOpt = Annotated[str, Option(
 )]
 
 
-@app.command(name="bump")
+@app.command(name="bump", epilog="Example: devtools version bump --minor")
 def cmd_bump(
-        arg: PathOrAliasArg = '.',
         major: MajorBumpOpt = False,
         minor: MinorBumpOpt = False,
         patch: PatchBumpOpt = False,
-        suffix: SuffixOpt = '',
-        virtual: VirtualOpt = ''
+        suffix: SuffixOpt = ''
 ):
+    """
+    Bump the version number of the project.
+
+    This command increments the major, minor, or patch version number of the project.
+    By default, it bumps the patch version. You can optionally add a suffix to the version.
+    If no components are being tracked, or if an attempt is made to bump multiple version
+    numbers at the same time, an error will be raised.
+    """
     if sum([major, minor, patch]) > 1:
-        console.print("Not allowed to bump multiple version numbers at the same time.")
+        console.print("ERROR! Cannot bump multiple version numbers at the same time!\n")
+        raise SystemExit()
     if not any([major, minor, patch]):
         patch = True
 
     config: VersionConfig = read_local_config_file(VersionConfig)
-    index, project = find_tracked_project(arg, config)
-
-    if index is None or project.is_default:
-        console.print("Cannot bump the version of an untracked project.")
-        raise SystemExit()
-    if virtual and virtual not in project.virtual:
-        console.print("Cannot bump the version of a virtual component which does not exist.")
+    if config.is_default or not config.components:
+        console.print("ERROR! Cannot version bump a project with no tracked components!\n")
         raise SystemExit()
 
-    source = project.virtual[virtual] if virtual else project.version
-    ver = Version.parse(source)
-
+    ver = Version.parse(config.app_version)
     index = [major, minor, patch].index(True)
     func = [ver.bump_major, ver.bump_minor, ver.bump_patch][index]
+    new_ver = str(func()) + (f"-{suffix}" if suffix else '')
 
-    suf = ''
-    if suffix or ver.prerelease:
-        suf = f"-{suffix or ver.prerelease}"
+    config_path = find_local_config_file(init_cwd=False)
+    bump = Confirm.ask(
+        f"Bump the version of [orchid]'{config_path.parent.name}'[/] from "
+        f"[steel_blue3]{config.app_version}[/] to [chartreuse3]{new_ver}[/]?"
+    )
+    if not bump:
+        console.print("[bold]Did not bump the project version.\n")
+        raise SystemExit()
 
-    ver_str = str(func()) + suf
-
-    if not virtual:
-        project.version = ver_str
-    else:
-        project.virtual[virtual] = ver_str
-
-    config_file: Path = find_local_config_file(init_cwd=False)
-    track_dir = config_file.parent / project.dir_path
-    prog_lang = infer_project_lang(track_dir)
-
-    prog_lang.write(track_dir / prog_lang.metafile, ver_str)
+    config.app_version = new_ver
     write_local_config_file(config)
+    console.print("[bold]Successfully bumped the project version.\n")

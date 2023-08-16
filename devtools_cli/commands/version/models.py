@@ -8,61 +8,41 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
-from typing import Callable
 from devtools_cli.models import DefaultModel, ConfigSection
 
 __all__ = [
-    "ProgLang",
-    "ProjectTracker",
+    "TrackedComponent",
     "VersionConfig"
 ]
 
 
-class ProgLang(DefaultModel):
+class TrackedComponent(DefaultModel):
     name: str
-    metafile: str
-    read: Callable
-    write: Callable
+    target: str
+    ignore: list[str]
+    hash: str
 
     @staticmethod
     def __defaults__() -> dict:
         return {
-            "name": '',
-            "metafile": '',
-            "read": lambda _: "0.0.0",
-            "write": lambda _, __: None
-        }
-
-
-class ProjectTracker(DefaultModel):
-    alias: str
-    dir_path: str
-    language: str
-    metafile: str
-    version: str
-    virtual: dict[str, str]
-
-    @staticmethod
-    def __defaults__() -> dict:
-        return {
-            "alias": "",
-            "dir_path": "",
-            "language": "",
-            "metafile": "",
-            "version": "",
-            "virtual": dict()
+            "name": "",
+            "target": "",
+            "ignore": list(),
+            "hash": ""
         }
 
 
 class VersionConfig(ConfigSection):
-    projects: list[ProjectTracker]
+    app_version: str
+    components: list[TrackedComponent]
 
     @staticmethod
     def __defaults__() -> dict:
         return {
-            "projects": []
+            "app_version": "0.0.0",
+            "components": list()
         }
 
     @property
     def section(self) -> str:
-        return 'version'
+        return 'version_cmd'

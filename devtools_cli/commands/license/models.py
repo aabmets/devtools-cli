@@ -119,4 +119,4 @@ class LicenseConfig(ConfigSection):
 
 	@property
 	def section(self) -> str:
-		return 'license'
+		return 'license_cmd'

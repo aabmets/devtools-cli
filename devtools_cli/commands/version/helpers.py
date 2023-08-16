@@ -8,76 +8,47 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
+import hashlib
 from pathlib import Path
 from .models import *
 
 __all__ = [
-    "find_tracked_project",
-    "read_version_from_pyproject_toml",
-    "write_version_to_pyproject_toml"
+    "hash_file",
+    "is_in_ignored_path",
+    "hash_directory"
 ]
 
 
-def find_tracked_project(arg: str, config: VersionConfig) -> tuple[int | None, ProjectTracker]:
-    project = ProjectTracker()
-    index = None
-
-    for i, entry in enumerate(config.projects):
-        if entry.dir_path == arg or entry.alias == arg:
-            project = config.projects[i]
-            index = i
-            break
-
-    return index, project
+def hash_file(filepath: Path) -> str:
+    blake_hash = hashlib.blake2b()
+    with filepath.open('rb') as f:
+        for byte_block in iter(lambda: f.read(4096), b''):
+            blake_hash.update(byte_block)
+    return blake_hash.hexdigest()
 
 
-def read_version_from_pyproject_toml(filepath: Path) -> str:
-    if not filepath or not filepath.exists() or not filepath.is_file() or filepath.name != 'pyproject.toml':
-        raise RuntimeError(f"Filepath '{filepath} is not a valid pyproject.toml file!")
+def is_in_ignored_path(filepath: Path, target: Path, ignored_paths: set) -> bool:
+    rel_path = filepath.relative_to(target)
+    for part in rel_path.parts:
+        if part.startswith('.') or part.startswith('_'):
+            return True
+    for ignored_path in ignored_paths:
+        if filepath.resolve().is_relative_to(ignored_path.resolve()):
+            return True
+    return False
 
-    with open(filepath, 'r') as file:
-        lines = file.readlines()
 
-    searching_for_version = False
-
-    for line in lines:
-        line = line.strip()
-
-        if line in ['[tool.poetry]', '[project]']:
-            searching_for_version = True
+def hash_directory(target: Path, ignore_paths: list) -> str:
+    blake_hash = hashlib.blake2b()
+    ignores = {
+        (target / path).resolve()
+        for path in ignore_paths
+    }
+    for filepath in target.rglob('*'):
+        if is_in_ignored_path(filepath, target, ignores):
             continue
+        elif filepath.is_file():
+            file_hash = hash_file(filepath)
+            blake_hash.update(file_hash.encode('utf-8'))
 
-        if searching_for_version and line.startswith('['):
-            break
-
-        if searching_for_version and line.startswith('version'):
-            return line.split('=')[-1].strip().strip('"').strip("'")
-
-    return "0.0.0"
-
-
-def write_version_to_pyproject_toml(filepath: Path, new_version: str = '0.0.0') -> None:
-    if not filepath or not filepath.exists() or not filepath.is_file() or filepath.name != 'pyproject.toml':
-        raise RuntimeError(f"Filepath '{filepath} is not a valid pyproject.toml file!")
-
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
-
-    searching_for_version = False
-
-    for index, line in enumerate(lines):
-        line = line.strip()
-
-        if line in ['[tool.poetry]', '[project]']:
-            searching_for_version = True
-            continue
-
-        if searching_for_version and line.startswith('['):
-            break
-
-        if searching_for_version and line.startswith('version'):
-            lines[index] = f'version = "{new_version}"\n'
-
-            with open(filepath, 'w') as f:
-                f.writelines(lines)
-                break
+    return blake_hash.hexdigest()

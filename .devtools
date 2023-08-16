@@ -1,6 +1,6 @@
 {
-  "config_file": "C:/Users/Mattias Aabmets/Projects/devtools-cli/.devtools",
-  "license": {
+  "config_file": "C:/Projects/devtools-cli/.devtools",
+  "license_cmd": {
     "header": {
       "title": "MIT License",
       "year": "2023",
@@ -12,15 +12,14 @@
     "paths": [],
     "file_name": "mit.json"
   },
-  "version": {
-    "projects": [
+  "version_cmd": {
+    "app_version": "0.3.0",
+    "components": [
       {
-        "alias": "cli",
-        "dir_path": ".",
-        "language": "python",
-        "metafile": "pyproject.toml",
-        "version": "0.2.0",
-        "virtual": {}
+        "name": "cli",
+        "target": ".",
+        "ignore": [],
+        "hash": "6863d6714f66f0402a1a66df8c44053772ab78494944e9e46aecb7c7f85f526a0fef3a0b57258b0be5186006e0dc986583a15121992420c1e658addcb6bdc3dd"
       }
     ]
   }
