@@ -177,8 +177,8 @@ def cmd_bump(
     new_version = str(func()) + (f"-{suffix}" if suffix else '')
 
     bump = Confirm.ask(
-        f"Bump the version of [orchid]'{config_file.parent.name}'[/] from "
-        f"[steel_blue3]{config.app_version}[/] to [chartreuse3]{new_version}[/]?"
+        f"Bump the version of [light_goldenrod3]'{config_file.parent.name}'[/] from "
+        f"[light_slate_blue]{config.app_version}[/] to [chartreuse3]{new_version}[/]?"
     )
     if not bump:
         console.print("[bold]Did not bump the project version.\n")
