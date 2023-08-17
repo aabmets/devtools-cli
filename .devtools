@@ -12,13 +12,13 @@
     "file_name": "mit.json"
   },
   "version_cmd": {
-    "app_version": "0.6.1",
+    "app_version": "0.6.2",
     "components": [
       {
         "name": "cli",
         "target": ".",
         "ignore": [],
-        "hash": "4c4ac7ea446f6a37e53c1634b85f4bea"
+        "hash": "63c5e33353fc50c0008b94f97cd612b9"
       }
     ]
   }
