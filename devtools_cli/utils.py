@@ -313,7 +313,7 @@ def write_to_github_file(key: str, value: str, gh_file: GitHubFile) -> None:
 		gh_vars = {line[0]: line[1] for line in lines}
 
 		gh_vars[key] = value
-		lines = [f"{k}={v}\n" for k, v in gh_vars]
+		lines = [f"{k}={v}\n" for k, v in gh_vars.items()]
 
 		with open(os.environ[gh_file], 'w') as file:
 			file.writelines(lines)
