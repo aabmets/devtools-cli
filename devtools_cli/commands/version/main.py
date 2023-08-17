@@ -8,17 +8,16 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
-import os
 from pathlib import Path
 from semver import Version
 from rich.prompt import Confirm
 from rich.console import Console
 from typing_extensions import Annotated
 from typer import Typer, Option
-from .helpers import *
-from .models import *
 from devtools_cli.models import *
 from devtools_cli.utils import *
+from .helpers import *
+from .models import *
 
 
 app = Typer(name="version", help="Manages project version number and tracks filesystem changes.")

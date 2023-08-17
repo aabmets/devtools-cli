@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "devtools-cli"
-version = "0.5.2"
+version = "0.6.0"
 description = "A toolbox of cross-language utility scripts for efficient software development."
 license = "MIT"
 authors = ["Mattias Aabmets <mattias.aabmets@gmail.com>"]
@@ -47,6 +47,7 @@ devtools = "devtools_cli.main:app"
 dtconf = "devtools_cli.commands.config.main:app"
 dtlic = "devtools_cli.commands.license.main:app"
 dtver = "devtools_cli.commands.version.main:app"
+dtlgc = "devtools_cli.commands.logic.main:app"
 
 [tool.poetry.group.dev]
 optional = true
