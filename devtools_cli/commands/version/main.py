@@ -215,7 +215,7 @@ def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = ''):
     def insert_ghenv(_value: str):
         if 'GITHUB_ENV' in os.environ:
             with open(os.environ['GITHUB_ENV'], 'a') as file:
-                file.write(f"{ghenv.upper()}={_value}")
+                file.write(f"{ghenv.upper()}={_value}\n")
         else:
             console.print(
                 f"ERROR! Cannot insert data into GitHub Actions "
