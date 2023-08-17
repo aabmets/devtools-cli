@@ -8,6 +8,7 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
+import os
 from pathlib import Path
 from semver import Version
 from rich.prompt import Confirm
@@ -159,25 +160,73 @@ def cmd_bump(
     if not any([major, minor, patch]):
         patch = True
 
+    config_file = find_local_config_file(init_cwd=False)
     config: VersionConfig = read_local_config_file(VersionConfig)
-    if config.is_default or not config.components:
-        console.print("ERROR! Cannot version bump a project with no tracked components!\n")
-        raise SystemExit()
 
     ver = Version.parse(config.app_version)
     index = [major, minor, patch].index(True)
     func = [ver.bump_major, ver.bump_minor, ver.bump_patch][index]
     new_ver = str(func()) + (f"-{suffix}" if suffix else '')
 
-    config_path = find_local_config_file(init_cwd=False)
     bump = Confirm.ask(
-        f"Bump the version of [orchid]'{config_path.parent.name}'[/] from "
+        f"Bump the version of [orchid]'{config_file.parent.name}'[/] from "
         f"[steel_blue3]{config.app_version}[/] to [chartreuse3]{new_ver}[/]?"
     )
     if not bump:
         console.print("[bold]Did not bump the project version.\n")
         raise SystemExit()
 
+    for comp in config.components:
+        track_path = config_file.parent / comp.target
+        if track_path.is_file():
+            track_hash = hash_file(track_path)
+        else:
+            track_hash = hash_directory(track_path, comp.ignore)
+        comp.hash = track_hash
+
     config.app_version = new_ver
     write_local_config_file(config)
     console.print("[bold]Successfully bumped the project version.\n")
+
+
+GitHubEnvOpt = Annotated[str, Option(
+    '--ghenv', '-g', show_default=False, help=''
+    'The name of the environment variable that the requested value is going to be assigned to.'
+)]
+
+
+@app.command(name="echo", epilog="Example: devtools version echo")
+def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = ''):
+    """
+    Echoes the project version to stdout if 'name' option is not provided, otherwise
+    echoes the hash of the tracked component by name. If 'ghenv' option is provided,
+    inserts the value into the GitHub Actions environ instead.
+    """
+    def insert_ghenv(_value: str):
+        if 'GITHUB_ENV' in os.environ:
+            with open(os.environ['GITHUB_ENV'], 'a') as file:
+                file.write(f"{ghenv.upper()}={_value}")
+        else:
+            console.print(
+                f"ERROR! Cannot insert data into GitHub Actions "
+                "environ when not running inside a GitHub Action.\n"
+            )
+            raise SystemExit()
+
+    config: VersionConfig = read_local_config_file(VersionConfig)
+    if not name:
+        if ghenv:
+            insert_ghenv(config.app_version)
+        else:
+            console.print(config.app_version)
+        return
+    else:
+        for entry in config.components:
+            if entry.name == name:
+                if ghenv:
+                    insert_ghenv(entry.hash)
+                else:
+                    console.print(entry.hash)
+                return
+        console.print("ERROR! Cannot access the hash of a non-existent component!\n")
+        raise SystemExit()

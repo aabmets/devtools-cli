@@ -24,7 +24,7 @@ def hash_file(filepath: Path) -> str:
     with filepath.open('rb') as f:
         for byte_block in iter(lambda: f.read(4096), b''):
             blake_hash.update(byte_block)
-    return blake_hash.hexdigest()
+    return blake_hash.hexdigest()[:32]
 
 
 def is_in_ignored_path(filepath: Path, target: Path, ignored_paths: set) -> bool:
@@ -51,4 +51,4 @@ def hash_directory(target: Path, ignore_paths: list) -> str:
             file_hash = hash_file(filepath)
             blake_hash.update(file_hash.encode('utf-8'))
 
-    return blake_hash.hexdigest()
+    return blake_hash.hexdigest()[:32]
