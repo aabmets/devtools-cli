@@ -317,6 +317,7 @@ def write_to_github_file(key: str, value: str, gh_file: GitHubFile) -> None:
 
 		with open(os.environ[gh_file], 'w') as file:
 			file.writelines(lines)
+			return
 
 	raise RuntimeError(
 		"Cannot write variables into GitHub Action files "
