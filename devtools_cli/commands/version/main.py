@@ -101,7 +101,7 @@ def cmd_track(name: NameOpt, target: TargetOpt = '.', ignore: IgnoreOpt = None):
 @app.command(name="untrack", epilog="Example: devtools version untrack --name app")
 def cmd_untrack(name: NameOpt):
     """
-    Untracks filesystem changes for a specified component in the project.
+    Un-tracks filesystem changes for a specified component in the project.
     If the specified name is not being tracked, an error will be raised.
     """
     config: VersionConfig = read_local_config_file(VersionConfig)
@@ -160,21 +160,31 @@ def cmd_bump(
     if not any([major, minor, patch]):
         patch = True
 
-    config_file = find_local_config_file(init_cwd=False)
-    config: VersionConfig = read_local_config_file(VersionConfig)
+    if count_descriptors() > 1:
+        console.print("ERROR! Cannot have multiple language descriptor files in the project directory!\n")
+        raise SystemExit()
 
-    ver = Version.parse(config.app_version)
+    config_file = find_local_config_file(init_cwd=True)
+    config: VersionConfig = read_local_config_file(VersionConfig)
+    descriptor_ver = read_descriptor_file_version()
+
+    desc_ver = Version.parse(descriptor_ver)
+    conf_ver = Version.parse(config.app_version)
+    ver = desc_ver if desc_ver > conf_ver else conf_ver
+
     index = [major, minor, patch].index(True)
     func = [ver.bump_major, ver.bump_minor, ver.bump_patch][index]
-    new_ver = str(func()) + (f"-{suffix}" if suffix else '')
+    new_version = str(func()) + (f"-{suffix}" if suffix else '')
 
     bump = Confirm.ask(
         f"Bump the version of [orchid]'{config_file.parent.name}'[/] from "
-        f"[steel_blue3]{config.app_version}[/] to [chartreuse3]{new_ver}[/]?"
+        f"[steel_blue3]{config.app_version}[/] to [chartreuse3]{new_version}[/]?"
     )
     if not bump:
         console.print("[bold]Did not bump the project version.\n")
         raise SystemExit()
+
+    write_descriptor_file_version(new_version)
 
     for comp in config.components:
         track_path = config_file.parent / comp.target
@@ -184,7 +194,7 @@ def cmd_bump(
             track_hash = hash_directory(track_path, comp.ignore)
         comp.hash = track_hash
 
-    config.app_version = new_ver
+    config.app_version = new_version
     write_local_config_file(config)
     console.print("[bold]Successfully bumped the project version.\n")
 

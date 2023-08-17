@@ -10,12 +10,16 @@
 #
 import hashlib
 from pathlib import Path
-from .models import *
+from devtools_cli.utils import *
+from .descriptors import *
 
 __all__ = [
     "hash_file",
     "is_in_ignored_path",
-    "hash_directory"
+    "hash_directory",
+    "count_descriptors",
+    "read_descriptor_file_version",
+    "write_descriptor_file_version"
 ]
 
 
@@ -52,3 +56,28 @@ def hash_directory(target: Path, ignore_paths: list) -> str:
             blake_hash.update(file_hash.encode('utf-8'))
 
     return blake_hash.hexdigest()[:32]
+
+
+def count_descriptors() -> int:
+    config_file = find_local_config_file(init_cwd=True)
+    return sum([
+        1 for file in config_file.parent.glob('*.*')
+        if file.name in SupportedDescriptors
+    ])
+
+
+def read_descriptor_file_version() -> str:
+    config_file = find_local_config_file(init_cwd=True)
+    for file, func in SupportedDescriptors.items():
+        path = config_file.parent / file
+        if path.exists() and path.is_file():
+            return func('read', path)
+    return '0.0.0'
+
+
+def write_descriptor_file_version(new_version: str) -> None:
+    config_file = find_local_config_file(init_cwd=True)
+    for file, func in SupportedDescriptors.items():
+        path = config_file.parent / file
+        if path.exists() and path.is_file():
+            func('write', path, new_version)
