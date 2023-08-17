@@ -30,7 +30,9 @@ __all__ = [
 	"read_local_config_file",
 	"write_local_config_file",
 	"read_file_into_model",
-	"write_model_into_file"
+	"write_model_into_file",
+	"read_from_github_file",
+	"write_to_github_file"
 ]
 
 
@@ -264,3 +266,59 @@ def write_model_into_file(path: Path, model_obj: BaseModel) -> None:
 
 	with open(path, 'wb') as file:
 		file.write(data)
+
+
+def read_from_github_file(key: str, gh_file: GitHubFile) -> str:
+	"""
+	Reads key-value pairs from GitHub Action files.
+
+	Args:
+		key: Name of the variable to read.
+		gh_file: A value of the enum GitHubFile.
+
+	Raises:
+		RuntimeError: If not running inside a GitHub Actions runner.
+	"""
+	if gh_file in os.environ:
+		with open(os.environ[gh_file], 'r') as file:
+			lines = file.readlines()
+
+		lines = [line.split('=') for line in lines]
+		gh_vars = {line[0]: line[1] for line in lines}
+		return gh_vars.get(key, '')
+
+	raise RuntimeError(
+		"Cannot read variables from GitHub Action files "
+		"when not running inside a GitHub Actions runner."
+	)
+
+
+def write_to_github_file(key: str, value: str, gh_file: GitHubFile) -> None:
+	"""
+	Appends key-value pairs to GitHub Action files.
+
+	Args:
+		key: Name of the variable key.
+		value: The value of the variable.
+		gh_file: A value of the enum GitHubFile.
+
+	Raises:
+		RuntimeError: If not running inside a GitHub Actions runner.
+	"""
+	if gh_file in os.environ:
+		with open(os.environ[gh_file], 'r') as file:
+			lines = file.readlines()
+
+		lines = [line.split('=') for line in lines]
+		gh_vars = {line[0]: line[1] for line in lines}
+
+		gh_vars[key] = value
+		lines = [f"{k}={v}\n" for k, v in gh_vars]
+
+		with open(os.environ[gh_file], 'w') as file:
+			file.writelines(lines)
+
+	raise RuntimeError(
+		"Cannot write variables into GitHub Action files "
+		"when not running inside a GitHub Actions runner."
+	)

@@ -17,6 +17,7 @@ from typing_extensions import Annotated
 from typer import Typer, Option
 from .helpers import *
 from .models import *
+from devtools_cli.models import *
 from devtools_cli.utils import *
 
 
@@ -200,43 +201,40 @@ def cmd_bump(
 
 
 GitHubEnvOpt = Annotated[str, Option(
-    '--ghenv', '-g', show_default=False, help=''
-    'The name of the environment variable that the requested value is going to be assigned to.'
+    '--ghenv', '-e', show_default=False, help=''
+    'The name of the environment variable that the evaluated result is assigned to.'
+)]
+GitHubOutOpt = Annotated[str, Option(
+    '--ghout', '-o', show_default=False, help=''
+    'The name of the output variable that the evaluated result is assigned to.'
 )]
 
 
 @app.command(name="echo", epilog="Example: devtools version echo")
-def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = ''):
+def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = '', ghout: GitHubOutOpt = ''):
     """
     Echoes the project version to stdout if 'name' option is not provided, otherwise
     echoes the hash of the tracked component by name. If 'ghenv' option is provided,
-    inserts the value into the GitHub Actions environ instead.
+    also inserts the value into the GitHub Actions environ file. If 'ghout' option
+    is provided, also inserts the value into the GitHub Actions step output file.
     """
-    def insert_ghenv(_value: str):
-        if 'GITHUB_ENV' in os.environ:
-            with open(os.environ['GITHUB_ENV'], 'a') as file:
-                file.write(f"{ghenv.upper()}={_value}\n")
-        else:
-            console.print(
-                f"ERROR! Cannot insert data into GitHub Actions "
-                "environ when not running inside a GitHub Action.\n"
-            )
-            raise SystemExit()
-
     config: VersionConfig = read_local_config_file(VersionConfig)
+    var_map = [(ghenv, GitHubFile.ENV), (ghout, GitHubFile.OUT)]
     if not name:
-        if ghenv:
-            insert_ghenv(config.app_version)
-        else:
-            console.print(config.app_version)
+        console.print(config.app_version)
+        [
+            write_to_github_file(key, config.app_version, file)
+            for key, file in var_map if key
+        ]
         return
     else:
         for entry in config.components:
             if entry.name == name:
-                if ghenv:
-                    insert_ghenv(entry.hash)
-                else:
-                    console.print(entry.hash)
+                console.print(entry.hash)
+                [
+                    write_to_github_file(key, entry.hash, file)
+                    for key, file in var_map if key
+                ]
                 return
         console.print("ERROR! Cannot access the hash of a non-existent component!\n")
         raise SystemExit()

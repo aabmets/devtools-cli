@@ -8,10 +8,16 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
+from enum import Enum
 from pydantic import BaseModel
 from abc import ABC, abstractmethod
 
-__all__ = ["DefaultModel", "ConfigSection"]
+__all__ = ["GitHubFile", "DefaultModel", "ConfigSection"]
+
+
+class GitHubFile(str, Enum):
+	ENV = 'GITHUB_ENV'
+	OUT = 'GITHUB_OUTPUT'
 
 
 class DefaultModel(ABC, BaseModel):
