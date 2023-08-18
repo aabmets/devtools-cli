@@ -284,7 +284,7 @@ def read_from_github_file(key: str, gh_file: GitHubFile) -> str:
 			lines = file.readlines()
 
 		lines = [line.split('=') for line in lines]
-		gh_vars = {line[0]: line[1] for line in lines}
+		gh_vars = {line[0]: line[1] for line in lines if len(line) == 2}
 		return gh_vars.get(key, '')
 
 	raise RuntimeError(
@@ -310,7 +310,7 @@ def write_to_github_file(key: str, value: str, gh_file: GitHubFile) -> None:
 			lines = file.readlines()
 
 		lines = [line.split('=') for line in lines]
-		gh_vars = {line[0]: line[1] for line in lines}
+		gh_vars = {line[0]: line[1] for line in lines if len(line) == 2}
 
 		gh_vars[key] = value
 		lines = [f"{k}={v}\n" for k, v in gh_vars.items()]
