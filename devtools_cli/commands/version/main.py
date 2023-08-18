@@ -30,9 +30,7 @@ NameOpt = Annotated[str, Option(
 )]
 TargetOpt = Annotated[str, Option(
     '--target', '-t', show_default=False, help=''
-    'The path to target with tracking, relative to the path of the .devtools config file. '
-    'If not provided, defaults to the location of the .devtools config file. If the config '
-    'file does not exist, a new config file is created in the current working directory.'
+    'The path to target with tracking, relative to the path of the .devtools config file.'
 )]
 IgnoreOpt = Annotated[list[str], Option(
     '--ignore', '-i', show_default=False, help=''
@@ -43,12 +41,8 @@ IgnoreOpt = Annotated[list[str], Option(
 @app.command(name="track", epilog="Example: devtools version track --name app")
 def cmd_track(name: NameOpt, target: TargetOpt = '.', ignore: IgnoreOpt = None):
     """
-    Tracks filesystem changes for a specified component in the project.
-    This command associates a unique name with a target path (file or directory)
-    and optionally sets paths to be ignored during tracking. If the specified name
-    or path is already being tracked, it updates the existing tracking information.
-    Errors will occur if the target path does not exist, if ignored paths are set
-    when the target is a file, or if duplicate names or paths are assigned.
+    Tracks changes inside the specified target path using file hashing.
+    Defaults to the .devtools config directory if called without 'target' option.
     """
     config_file: Path = find_local_config_file(init_cwd=True)
     config: VersionConfig = read_local_config_file(VersionConfig)
@@ -147,12 +141,8 @@ def cmd_bump(
         suffix: SuffixOpt = ''
 ):
     """
-    Bump the version number of the project.
-
-    This command increments the major, minor, or patch version number of the project.
-    By default, it bumps the patch version. You can optionally add a suffix to the version.
-    If no components are being tracked, or if an attempt is made to bump multiple version
-    numbers at the same time, an error will be raised.
+    Increments the version identifier of the project.
+    Defaults to patch version if called without version type options.
     """
     if sum([major, minor, patch]) > 1:
         console.print("ERROR! Cannot bump multiple version numbers at the same time!\n")
@@ -201,21 +191,19 @@ def cmd_bump(
 
 GitHubEnvOpt = Annotated[str, Option(
     '--ghenv', '-e', show_default=False, help=''
-    'The name of the environment variable that the evaluated result is assigned to.'
+    'The name for the variable that is inserted into the GitHub Action environment file.'
 )]
 GitHubOutOpt = Annotated[str, Option(
     '--ghout', '-o', show_default=False, help=''
-    'The name of the output variable that the evaluated result is assigned to.'
+    'The name for the variable that is inserted into the GitHub Action outputs file.'
 )]
 
 
 @app.command(name="echo", epilog="Example: devtools version echo")
 def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = '', ghout: GitHubOutOpt = ''):
     """
-    Echoes the project version to stdout if 'name' option is not provided, otherwise
-    echoes the hash of the tracked component by name. If 'ghenv' option is provided,
-    also inserts the value into the GitHub Actions environ file. If 'ghout' option
-    is provided, also inserts the value into the GitHub Actions step output file.
+    Echoes project version or component hashes to stdout, optionally
+    inserts echoed data into GitHub Action files if applicable.
     """
     config: VersionConfig = read_local_config_file(VersionConfig)
     var_map = [(ghenv, GitHubFile.ENV), (ghout, GitHubFile.OUT)]
@@ -237,3 +225,28 @@ def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = '', ghout: GitHubOutOpt =
                 return
         console.print("ERROR! Cannot access the hash of a non-existent component!\n")
         raise SystemExit()
+
+
+@app.command(name="regen", epilog="Example: devtools version regen")
+def cmd_echo():
+    """
+    Regenerates the hashes of all tracked components and updates
+    the config file. Does not change the project version.
+    """
+    config_file = find_local_config_file(init_cwd=False)
+    config: VersionConfig = read_local_config_file(VersionConfig)
+
+    if config_file is None or config.is_default or not config.components:
+        console.print("No component hashes to update.\n")
+        raise SystemExit()
+
+    for comp in config.components:
+        track_path = config_file.parent / comp.target
+        if track_path.is_file():
+            track_hash = hash_file(track_path)
+        else:
+            track_hash = hash_directory(track_path, comp.ignore)
+        comp.hash = track_hash
+
+    write_local_config_file(config)
+    console.print("[bold]Successfully updated component hashes.\n")
