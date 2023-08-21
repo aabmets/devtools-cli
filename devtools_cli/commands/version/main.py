@@ -228,7 +228,7 @@ def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = '', ghout: GitHubOutOpt =
 
 
 @app.command(name="regen", epilog="Example: devtools version regen")
-def cmd_echo():
+def cmd_regen():
     """
     Regenerates the hashes of all tracked components and updates
     the config file. Does not change the project version.
@@ -250,3 +250,37 @@ def cmd_echo():
 
     write_local_config_file(config)
     console.print("[bold]Successfully updated component hashes.\n")
+
+
+BaseVerOpt = Annotated[str, Option(
+    "--base", "-b", show_default=False, help=''
+    'The base version identifier to compare against.'
+)]
+HeadVerOpt = Annotated[str, Option(
+    "--head", "-h", show_default=False, help=''
+    'The head version identifier to compare against.'
+)]
+
+
+@app.command(name="cmp", epilog="Example: devtools version cmp --base 1.0.0 --head 1.0.1")
+def cmd_cmp(base: BaseVerOpt, head: HeadVerOpt, ghenv: GitHubEnvOpt = '', ghout: GitHubOutOpt = ''):
+    """
+    Returns either "lt", "gt" or "eq" which represents the
+    logical relationship between the two version identifiers.
+    The comparison is made as: head <operand> base.
+    """
+    base_ver = Version.parse(base)
+    head_ver = Version.parse(head)
+
+    result = "eq"
+    if head_ver < base_ver:
+        result = "lt"
+    elif head_ver > base_ver:
+        result = "gt"
+
+    var_map = [(ghenv, GitHubFile.ENV), (ghout, GitHubFile.OUT)]
+    [
+        write_to_github_file(key, result, file)
+        for key, file in var_map if key
+    ]
+    console.print(result)

@@ -23,6 +23,9 @@ console = Console(soft_wrap=True)
 
 @app.command(name="init", epilog="Example: devtools config init")
 def cmd_init():
+    """
+    Initializes the current working directory with a .devtools config file, if it doesn't exist.
+    """
     config_file = find_local_config_file(init_cwd=False)
     cwd = Path.cwd()
 
@@ -43,6 +46,9 @@ def cmd_init():
 
 @app.command(name="edit", epilog="Example: devtools config edit")
 def cmd_edit():
+    """
+    Opens the nearest .devtools config file relative to the current working directory for editing.
+    """
     config_file = find_local_config_file(init_cwd=False)
     if not config_file:
         console.print(f"Config file not found, unable to continue.")
