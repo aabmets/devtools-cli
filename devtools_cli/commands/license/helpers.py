@@ -118,7 +118,7 @@ async def fetch_one_license(client: httpx.AsyncClient, index: int, filename: str
 	)
 
 
-async def fetch_license_details(filenames: list[str], callback: Callable) -> list[LicenseDetails]:
+async def fetch_license_details(filenames: list[str], callback: Callable) -> tuple[LicenseDetails]:
 	"""
 	This coroutine creates an HTTP client, schedules a coroutine for each provided filename
 	to fetch the corresponding license's details from a GitHub repository, attaches a callback
