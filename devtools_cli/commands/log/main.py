@@ -37,7 +37,7 @@ ChangesOpt = Annotated[str, Option(
 )]
 
 
-@app.command(name="next", epilog="Example: devtools log next --changes \"changes\"")
+@app.command(name="insert", epilog="Example: devtools log next --changes \"changes\"")
 def cmd_next(changes: ChangesOpt = ''):
     config_file: Path = find_local_config_file(init_cwd=True)
     logfile = config_file.parent / CHANGELOG_FILENAME
@@ -58,12 +58,14 @@ def cmd_next(changes: ChangesOpt = ''):
 
     config: VersionConfig = read_local_config_file(VersionConfig)
     title = f"{SECTION_LEVEL} [{config.app_version}] - {date.today().isoformat()}  "
+    changes = [c if c.startswith("- ") else f"- {c}" for c in changes.splitlines()]
 
     with logfile.open('w') as file:
-        contents = [*HEADER, '', title, '', changes, '', *existing]
+        contents = [*HEADER, '', title, '', *changes, '', *existing]
         file.write('\n'.join(contents))
 
-    console.print("Successfully updated the CHANGELOG.md file.")
+    verb = "updated" if existing else "created"
+    console.print(f"Successfully {verb} the {CHANGELOG_FILENAME} file.")
 
 
 VersionOpt = Annotated[str, Option(
@@ -73,7 +75,7 @@ VersionOpt = Annotated[str, Option(
 
 
 @app.command(name="view", epilog="Example: devtools log view --version 1.2.3")
-def cmd_asdfg(version: VersionOpt):
+def cmd_view(version: VersionOpt = None):
     config_file = find_local_config_file(init_cwd=False)
     if config_file is None:
         console.print("ERROR! Project is not initialized with a devtools config file!")
@@ -87,7 +89,8 @@ def cmd_asdfg(version: VersionOpt):
     with logfile.open('r') as file:
         lines = file.read().splitlines()
 
-    section = f"{SECTION_LEVEL} [{version}]"
+    line: str
+    section = f"{SECTION_LEVEL} [{version}]" if version else f"{SECTION_LEVEL}"
     for i, line in enumerate(lines):
         if line.startswith(section):
             end = len(lines)
@@ -96,7 +99,10 @@ def cmd_asdfg(version: VersionOpt):
                     end = j
                     break
 
-            print(f"Version {version} changelog:")
+            ver_type = 'Version' if version else "Latest version"
+            ver_ident = version or line.split('[')[-1].split(']')[0]
+            print(f"{ver_type} {ver_ident} changelog:")
+
             contents = lines[i + 2:end]
             for c in contents:
                 print(c)
