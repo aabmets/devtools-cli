@@ -70,9 +70,9 @@ def cmd_track(name: NameOpt, target: TargetOpt = '.', ignore: IgnoreOpt = None):
             index = i
 
     if track_path.is_file():
-        track_hash = hash_file(track_path)
+        track_hash = digest_file(track_path)
     else:
-        track_hash = hash_directory(track_path, ignore)
+        track_hash = digest_directory(track_path, ignore)
 
     comp = TrackedComponent(
         name=name,
@@ -179,9 +179,9 @@ def cmd_bump(
     for comp in config.components:
         track_path = config_file.parent / comp.target
         if track_path.is_file():
-            track_hash = hash_file(track_path)
+            track_hash = digest_file(track_path)
         else:
-            track_hash = hash_directory(track_path, comp.ignore)
+            track_hash = digest_directory(track_path, comp.ignore)
         comp.hash = track_hash
 
     config.app_version = new_version
@@ -208,6 +208,7 @@ def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = '', ghout: GitHubOutOpt =
     config: VersionConfig = read_local_config_file(VersionConfig)
     var_map = [(ghenv, GitHubFile.ENV), (ghout, GitHubFile.OUT)]
     if not name:
+        validate_version(config.app_version)
         console.print(config.app_version)
         [
             write_to_github_file(key, config.app_version, file)
@@ -216,6 +217,7 @@ def cmd_echo(name: NameOpt = '', ghenv: GitHubEnvOpt = '', ghout: GitHubOutOpt =
         return
     else:
         for entry in config.components:
+            validate_digest(entry.hash)
             if entry.name == name:
                 console.print(entry.hash)
                 [
@@ -243,9 +245,9 @@ def cmd_regen():
     for comp in config.components:
         track_path = config_file.parent / comp.target
         if track_path.is_file():
-            track_hash = hash_file(track_path)
+            track_hash = digest_file(track_path)
         else:
-            track_hash = hash_directory(track_path, comp.ignore)
+            track_hash = digest_directory(track_path, comp.ignore)
         comp.hash = track_hash
 
     write_local_config_file(config)

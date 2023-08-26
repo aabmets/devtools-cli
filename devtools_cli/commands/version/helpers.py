@@ -14,21 +14,29 @@ from devtools_cli.utils import *
 from .descriptors import *
 
 __all__ = [
-    "hash_file",
+    "validate_version",
+    "validate_digest",
     "is_in_ignored_path",
-    "hash_directory",
+    "digest_file",
+    "digest_directory",
     "count_descriptors",
     "read_descriptor_file_version",
     "write_descriptor_file_version"
 ]
 
+DIGEST_LENGTH = 32
 
-def hash_file(filepath: Path) -> str:
-    blake_hash = hashlib.blake2b()
-    with filepath.open('rb') as f:
-        for byte_block in iter(lambda: f.read(4096), b''):
-            blake_hash.update(byte_block)
-    return blake_hash.hexdigest()[:32]
+
+def validate_version(value: str) -> None:
+    parts = value.split('.')
+    for part in parts:
+        if not part.isdecimal():
+            raise ValueError(f"Invalid devtools SemVer identifier: {value}")
+
+
+def validate_digest(value: str) -> None:
+    if len(value) != DIGEST_LENGTH or any([True for c in value if not c.isalnum()]):
+        raise ValueError(f"Invalid devtools version hash digest: {value}")
 
 
 def is_in_ignored_path(filepath: Path, target: Path, ignored_paths: set) -> bool:
@@ -42,7 +50,15 @@ def is_in_ignored_path(filepath: Path, target: Path, ignored_paths: set) -> bool
     return False
 
 
-def hash_directory(target: Path, ignore_paths: list) -> str:
+def digest_file(filepath: Path) -> str:
+    blake_hash = hashlib.blake2b()
+    with filepath.open('rb') as f:
+        for byte_block in iter(lambda: f.read(4096), b''):
+            blake_hash.update(byte_block)
+    return blake_hash.hexdigest()[:DIGEST_LENGTH]
+
+
+def digest_directory(target: Path, ignore_paths: list) -> str:
     blake_hash = hashlib.blake2b()
     ignores = {
         (target / path).resolve()
@@ -52,10 +68,10 @@ def hash_directory(target: Path, ignore_paths: list) -> str:
         if is_in_ignored_path(filepath, target, ignores):
             continue
         elif filepath.is_file():
-            file_hash = hash_file(filepath)
+            file_hash = digest_file(filepath)
             blake_hash.update(file_hash.encode('utf-8'))
 
-    return blake_hash.hexdigest()[:32]
+    return blake_hash.hexdigest()[:DIGEST_LENGTH]
 
 
 def count_descriptors() -> int:
