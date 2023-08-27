@@ -8,16 +8,15 @@
 #
 #   SPDX-License-Identifier: MIT
 #
+import re
 from pathlib import Path
 from datetime import date
 from devtools_cli.utils import *
+from .models import *
 from .errors import *
 
 
 __all__ = [
-    "CHANGELOG_FILENAME",
-    "SECTION_LEVEL",
-    "HEADER",
     "get_section_label",
     "extract_version_from_label",
     "conform_changes",
@@ -25,17 +24,10 @@ __all__ = [
     "read_existing_content",
     "write_new_section",
     "update_latest_section",
-    "validate_unique_version"
-]
-
-CHANGELOG_FILENAME = "CHANGELOG.md"
-SECTION_LEVEL = '###'
-HEADER = [
-    "# Changelog",
-    "",
-    "All notable changes to this project will be documented in this file.  ",
-    "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), "
-    "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).  "
+    "validate_unique_version",
+    "get_compare_changes_link",
+    "add_release_link_ref",
+    "is_line_link_ref"
 ]
 
 
@@ -70,8 +62,6 @@ def get_logfile_path(*, init_cwd: bool) -> Path:
             raise ChangelogFileNotFound()
         else:
             logfile.touch(exist_ok=True)
-            with logfile.open('w') as file:
-                file.write('\n'.join(HEADER))
     return logfile
 
 
@@ -79,47 +69,49 @@ def read_existing_content(*, init_cwd: bool) -> list[str]:
     logfile = get_logfile_path(init_cwd=init_cwd)
     with logfile.open('r') as file:
         lines = file.read().splitlines()
-    existing = []
-    for i, line in enumerate(lines):
-        if line.startswith(SECTION_LEVEL):
-            existing = lines[i:]
-            break
-    return existing
+    skip = Header.line_count + 1
+    return lines[skip:]
 
 
 def write_new_section(version: str, changes: list[str], existing: list[str]) -> None:
+    existing = add_release_link_ref(version, existing)
+    link = get_compare_changes_link(version)
+    title = get_section_label(version)
+    header = Header(link)
+
     logfile = get_logfile_path(init_cwd=False)
     with logfile.open('w') as file:
-        title = get_section_label(version)
         file.write('\n'.join([
-            *HEADER,
-            '',
-            title,
-            '',
-            *changes,
-            '',
+            header, '',
+            title, '',
+            *changes, '',
             *existing
         ]))
 
 
-def update_latest_section(changes: list[str], existing: list[str]) -> None:
+def update_latest_section(version: str, changes: list[str], existing: list[str]) -> None:
     latest, remainder = [], []
     for i in range(1, len(existing)):
-        if existing[i].startswith(SECTION_LEVEL):
+        if existing[i].startswith(SECTION_LEVEL) or is_line_link_ref(existing[i]):
             latest = existing[:i]
             remainder = existing[i:]
+            break
+
+    if not latest:
+        latest = existing
 
     if latest and latest[-1] == '':
         latest.pop(-1)
     latest.extend(changes)
 
     logfile = get_logfile_path(init_cwd=False)
+    link = get_compare_changes_link(version)
+    header = Header(link)
+
     with logfile.open('w') as file:
         file.write('\n'.join([
-            *HEADER,
-            '',
-            *latest,
-            '',
+            header, '',
+            *latest, '',
             *remainder
         ]))
 
@@ -131,3 +123,31 @@ def validate_unique_version(version: str, existing: list) -> bool:
             if version == ex_ver:
                 return False
     return True
+
+
+def get_compare_changes_link(version: str) -> str:
+    config: LogConfig = read_local_config_file(LogConfig)
+    url = f"{GITHUB_URL}/{config.gh_user}/{config.gh_repo}/compare/{version}...{version}"
+    return f"#### [Compare changes]({url})<br><br>"
+
+
+def is_line_link_ref(line: str) -> bool:
+    pattern = r"^\[(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\]"
+    return True if re.match(pattern, line) else False
+
+
+def add_release_link_ref(version: str, changelist: list) -> list:
+    log, refs = [], []
+    for i, line in enumerate(changelist):
+        if is_line_link_ref(line):
+            log = changelist[:i]
+            refs = changelist[i:]
+            break
+
+    if not log:
+        log = changelist
+
+    config: LogConfig = read_local_config_file(LogConfig)
+    url = f"{GITHUB_URL}/{config.gh_user}/{config.gh_repo}/releases/tag/{version}"
+    refs = [f"[{version}]: {url}", *refs]
+    return log + refs

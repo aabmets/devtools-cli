@@ -15,11 +15,44 @@ from typing_extensions import Annotated
 from devtools_cli.commands.version.models import VersionConfig
 from devtools_cli.utils import *
 from .helpers import *
+from .models import *
 from .errors import *
 
 
 app = Typer(name="log", help="Manages project changelog file.")
 console = Console(soft_wrap=True)
+
+
+UserOpt = Annotated[str, Option(
+    '--user', '-u', show_default=False, help=''
+    'The GitHub username of the current project.'
+)]
+RepoOpt = Annotated[str, Option(
+    '--repo', '-r', show_default=False, help=''
+    'The GitHub repository of the current project.'
+)]
+
+
+@app.command(name="init", epilog="Example: devtools log init --user \"user\" --repo \"repo\"")
+def cmd_init(user: UserOpt, repo: RepoOpt):
+    """
+    Stores the provided GitHub project attributes into the devtools
+    config file and (re-)initializes the CHANGELOG.md file with a header.
+    """
+    log_conf: LogConfig = read_local_config_file(LogConfig)
+    log_conf.gh_user = user
+    log_conf.gh_repo = repo
+    write_local_config_file(log_conf)
+
+    ver_conf: VersionConfig = read_local_config_file(VersionConfig)
+    link = get_compare_changes_link(ver_conf.app_version)
+    header = Header(link)
+
+    logfile = get_logfile_path(init_cwd=True)
+    with logfile.open('w') as file:
+        file.write(header)
+
+    console.print("Successfully initialized the log configuration.\n")
 
 
 NewSectionOpt = Annotated[bool, Option(
@@ -33,8 +66,13 @@ def cmd_add(new_section: NewSectionOpt = False):
     """
     Interactively add changes into the changelog file.
     """
-    config: VersionConfig = read_local_config_file(VersionConfig)
-    version = config.app_version
+    log_conf: LogConfig = read_local_config_file(LogConfig)
+    if log_conf.is_default:
+        console.print("ERROR! Cannot add changes to the changelog without first initializing the log config.\n")
+        raise SystemExit()
+
+    ver_conf: VersionConfig = read_local_config_file(VersionConfig)
+    version = ver_conf.app_version
 
     existing = read_existing_content(init_cwd=True)
     if not existing and not new_section:
@@ -61,7 +99,7 @@ def cmd_add(new_section: NewSectionOpt = False):
     if new_section:
         write_new_section(version, conformed, existing)
     else:
-        update_latest_section(conformed, existing)
+        update_latest_section(version, conformed, existing)
 
 
 ChangesOpt = Annotated[str, Option(
@@ -76,8 +114,13 @@ def cmd_insert(changes: ChangesOpt = ''):
     This command is intended to be used in a bash script to insert
     variable contents into a new version section of a changelog file.
     """
-    config: VersionConfig = read_local_config_file(VersionConfig)
-    version = config.app_version
+    log_conf: LogConfig = read_local_config_file(LogConfig)
+    if log_conf.is_default:
+        console.print("ERROR! Cannot add changes to the changelog without first initializing the log config.\n")
+        raise SystemExit()
+
+    ver_conf: VersionConfig = read_local_config_file(VersionConfig)
+    version = ver_conf.app_version
 
     existing = read_existing_content(init_cwd=True)
     if not validate_unique_version(version, existing):
@@ -120,7 +163,9 @@ def cmd_view(version: VersionOpt = None):
         if line.startswith(label):
             end = len(existing)
             for j in range(i + 1, end):
-                if existing[j].startswith(f"{SECTION_LEVEL}"):
+                end_1 = existing[j].startswith(f"{SECTION_LEVEL}")
+                end_2 = is_line_link_ref(existing[j])
+                if end_1 or end_2:
                     end = j
                     break
 
@@ -128,11 +173,8 @@ def cmd_view(version: VersionOpt = None):
             ver_ident = extract_version_from_label(line)
             print(f"{ver_type} {ver_ident} changelog:")
 
-            contents = existing[i + 2:end]
-            for c in contents:
+            for c in existing[i + 2:end]:
                 print(c)
-            if contents[-1] != '':
-                print('')
             return
 
     console.print(f"The changelog does not contain any sections for version {version}.")

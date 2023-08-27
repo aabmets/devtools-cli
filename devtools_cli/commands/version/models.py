@@ -8,7 +8,6 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
-
 from devtools_cli.models import DefaultModel, ConfigSection
 
 __all__ = [
