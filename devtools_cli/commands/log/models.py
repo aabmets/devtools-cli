@@ -32,14 +32,12 @@ class Header(str):
         "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).  ",
         "_NOTE: This changelog is generated and managed by [devtools-cli]"  # <--- Line continuation!
         "(https://pypi.org/project/devtools-cli/), **do not edit manually**._",
-        "",
-        "{changes_link}"
+        ""
     ]
     line_count = len(__template__)
 
-    def __new__(cls, changes_link) -> str:
+    def __new__(cls) -> str:
         header = '\n'.join(cls.__template__)
-        header = header.format(changes_link=changes_link)
         return super().__new__(cls, header)
 
 

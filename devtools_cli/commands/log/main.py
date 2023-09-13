@@ -8,6 +8,7 @@
 #
 #   SPDX-License-Identifier: MIT
 #
+from semver import Version
 from rich.prompt import Prompt
 from rich.console import Console
 from typer import Typer, Option
@@ -44,27 +45,20 @@ def cmd_init(user: UserOpt, repo: RepoOpt):
     log_conf.gh_repo = repo
     write_local_config_file(log_conf)
 
-    ver_conf: VersionConfig = read_local_config_file(VersionConfig)
-    link = get_compare_changes_link(ver_conf.app_version)
-    header = Header(link)
-
     logfile = get_logfile_path(init_cwd=True)
     with logfile.open('w') as file:
-        file.write(header)
+        file.write(Header())
 
     console.print("Successfully initialized the log configuration.\n")
 
 
-NewSectionOpt = Annotated[bool, Option(
-    '--new', '-n', show_default=False, help=''
-    'If the changes should be added to a new version section.'
-)]
-
-
-@app.command(name="add", epilog="Example: devtools log add --new")
-def cmd_add(new_section: NewSectionOpt = False):
+@app.command(name="add", epilog="Example: devtools log add")
+def cmd_add():
     """
     Interactively add changes into the changelog file.
+    If the version in the .devtools file is larger than the
+    latest entry in the changelog file, then a new section
+    is created into the changelog file for the new version.
     """
     log_conf: LogConfig = read_local_config_file(LogConfig)
     if log_conf.is_default:
@@ -72,14 +66,16 @@ def cmd_add(new_section: NewSectionOpt = False):
         raise SystemExit()
 
     ver_conf: VersionConfig = read_local_config_file(VersionConfig)
-    version = ver_conf.app_version
-
     existing = read_existing_content(init_cwd=True)
-    if not existing and not new_section:
-        new_section = True
-    elif new_section and not validate_unique_version(version, existing):
-        console.print("ERROR! Cannot insert a duplicate version section into the changelog file.\n")
-        raise SystemExit()
+    new_section = True
+
+    if len(existing) >= 1:
+        prev_ver_str = extract_version_from_label(existing[0])
+        curr_ver = Version.parse(ver_conf.app_version)
+        prev_ver = Version.parse(prev_ver_str)
+
+        if curr_ver == prev_ver:
+            new_section = False
 
     console.print("Please provide the changelog contents: (Press Enter on empty prompt to apply.)")
 
@@ -89,17 +85,16 @@ def cmd_add(new_section: NewSectionOpt = False):
         if change == '':
             break
         changes.append(change)
-    conformed = conform_changes(changes)
 
     if not changes:
-        console.print("Did not alter the changelog file.\n")
+        msg = "Did not alter the changelog file.\n"
+    elif new_section:
+        write_new_section(ver_conf.app_version, changes, existing)
+        msg = "Added the changes into a new section of the changelog file.\n"
     else:
-        console.print("Added the provided changes into the changelog file.\n")
-
-    if new_section:
-        write_new_section(version, conformed, existing)
-    else:
-        update_latest_section(version, conformed, existing)
+        update_latest_section(changes, existing)
+        msg = "Added the changes into the latest section of the changelog file.\n"
+    console.print(msg)
 
 
 ChangesOpt = Annotated[str, Option(
@@ -120,15 +115,14 @@ def cmd_insert(changes: ChangesOpt = ''):
         raise SystemExit()
 
     ver_conf: VersionConfig = read_local_config_file(VersionConfig)
+    existing = read_existing_content(init_cwd=True)
     version = ver_conf.app_version
 
-    existing = read_existing_content(init_cwd=True)
     if not validate_unique_version(version, existing):
         console.print("ERROR! Cannot insert a duplicate version section into the changelog file.\n")
         raise SystemExit()
 
-    conformed = conform_changes(changes)
-    write_new_section(version, conformed, existing)
+    write_new_section(version, changes, existing)
 
     verb = "updated" if existing else "created"
     console.print(f"Successfully {verb} the changelog file.")
