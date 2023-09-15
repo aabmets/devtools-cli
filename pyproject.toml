@@ -34,13 +34,22 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
-orjson = "^3.9.4"
+python = "^3.10"
+orjson = "^3.9.7"
 pyyaml = "^6.0.1"
-httpx = "^0.24.1"
+httpx = "^0.25.0"
 semver = "^3.0.1"
-pydantic = "^2.1.1"
+pydantic = "^2.3.0"
 typer = { extras = ["all"], version = "^0.9.0" }
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.2"
+pytest-cov = "^4.1.0"
+pytest-asyncio = "^0.21.1"
+coverage = "^7.3.1"
 
 [tool.poetry.scripts]
 devtools = "devtools_cli.main:app"
@@ -48,15 +57,6 @@ dtconf = "devtools_cli.commands.config.main:app"
 dtlic = "devtools_cli.commands.license.main:app"
 dtver = "devtools_cli.commands.version.main:app"
 dtlog = "devtools_cli.commands.log.main:app"
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-pytest-cov = "^4.1.0"
-pytest-asyncio = "^0.21.1"
-coverage = "^7.2.7"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
