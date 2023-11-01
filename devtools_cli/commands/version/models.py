@@ -35,12 +35,14 @@ class TrackedComponent(DefaultModel):
 class VersionConfig(ConfigSection):
     app_version: str
     components: list[TrackedComponent]
+    only_config: bool
 
     @staticmethod
     def __defaults__() -> dict:
         return {
             "app_version": "0.0.0",
-            "components": list()
+            "components": list(),
+            "only_config": False
         }
 
     @property

@@ -36,10 +36,18 @@ IgnoreOpt = Annotated[list[str], Option(
     '--ignore', '-i', show_default=False, help=''
     'A path to be ignored relative to the target path. Can be used multiple times.'
 )]
+OnlyConfigOpt = Annotated[bool, Option(
+    '--only-config', '-o', show_default=False, help=''
+    'Whether to bump the project version number only in the .devtools configuration file, '
+    'skipping any project descriptor files. False by default.'
+)]
 
 
 @app.command(name="track", epilog="Example: devtools version track --name app")
-def cmd_track(name: NameOpt, target: TargetOpt = '.', ignore: IgnoreOpt = None):
+def cmd_track(name: NameOpt,
+              target: TargetOpt = '.',
+              ignore: IgnoreOpt = None,
+              only_config: OnlyConfigOpt = False) -> None:
     """
     Tracks changes inside the specified target path using file hashing.
     Defaults to the .devtools config directory if called without 'target' option.
@@ -74,11 +82,12 @@ def cmd_track(name: NameOpt, target: TargetOpt = '.', ignore: IgnoreOpt = None):
     else:
         track_hash = digest_directory(track_path, ignore)
 
+    config.only_config = only_config
     comp = TrackedComponent(
-        name=name,
+        hash=track_hash,
         target=target,
         ignore=ignore,
-        hash=track_hash
+        name=name
     )
 
     if index is None:
@@ -174,7 +183,8 @@ def cmd_bump(
         console.print("[bold]Did not bump the project version.\n")
         raise SystemExit()
 
-    write_descriptor_file_version(new_version)
+    if not config.only_config:
+        write_descriptor_file_version(new_version)
 
     for comp in config.components:
         track_path = config_file.parent / comp.target
