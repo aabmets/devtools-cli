@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "devtools-cli"
-version = "0.12.0"
+version = "0.12.1"
 description = "A toolbox of cross-language utility scripts for efficient software development."
 license = "MIT"
 authors = ["Mattias Aabmets <mattias.aabmets@gmail.com>"]
@@ -37,9 +37,9 @@ packages = [
 python = "^3.10"
 orjson = "^3.9.10"
 pyyaml = "^6.0.1"
-httpx = "^0.25.0"
+httpx = "^0.26.0"
 semver = "^3.0.2"
-pydantic = "^2.4.2"
+pydantic = "^2.5.2"
 typer = { extras = ["all"], version = "^0.9.0" }
 
 [tool.poetry.group.dev]
@@ -48,8 +48,8 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
 pytest-cov = "^4.1.0"
-pytest-asyncio = "^0.21.1"
-coverage = "^7.3.2"
+pytest-asyncio = "^0.23.2"
+coverage = "^7.3.4"
 
 [tool.poetry.scripts]
 devtools = "devtools_cli.main:app"
