@@ -1,7 +1,7 @@
 #
 #   MIT License
 #   
-#   Copyright (c) 2023, Mattias Aabmets
+#   Copyright (c) 2024, Mattias Aabmets
 #   
 #   The contents of this file are subject to the terms and conditions defined in the License.
 #   You may not use, modify, or distribute this file except in compliance with the License.
@@ -142,7 +142,7 @@ async def fetch_license_details(filenames: list[str], callback: Callable) -> tup
 		return await asyncio.gather(*tasks)
 
 
-def write_licenses_to_storage(licenses: list[LicenseDetails]) -> None:
+def write_licenses_to_storage(licenses: tuple[LicenseDetails]) -> None:
 	"""
 	This function iterates through a list of LicenseDetails objects, each containing details
 	of a license, writes each license's details into a file in a specified storage directory,
@@ -283,7 +283,7 @@ def print_apply_results(
 	for path, res in results:
 		if res == 'unsupported':
 			continue
-		path = path.relative_to(conf_dir)
+		# path = path.relative_to(conf_dir)
 		all_parts = [top_key, *path.parts]
 		subtree = main_tree
 
@@ -291,7 +291,8 @@ def print_apply_results(
 			key = '/'.join(all_parts[:i + 1])
 			is_file = Path(key).is_file()
 			if i == len(all_parts) - 1 and is_file:
-				a, b = '[italic dark_goldenrod]', '[italic dark_sea_green4]'
+				a, b = '[italic dark_goldenrod]', '[italic bold green3]'
+				res = res.upper() if res == 'applied' else res
 				part += f" - {a if res == 'skipped' else b}{res}[/]"
 			if key not in tree_map:
 				a, b = '[grey93]', '[deep_sky_blue1]'

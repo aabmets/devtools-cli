@@ -1,7 +1,7 @@
 #
 #   MIT License
 #   
-#   Copyright (c) 2023, Mattias Aabmets
+#   Copyright (c) 2024, Mattias Aabmets
 #   
 #   The contents of this file are subject to the terms and conditions defined in the License.
 #   You may not use, modify, or distribute this file except in compliance with the License.
@@ -28,6 +28,17 @@ app = Typer(name="license", help="Manages license headers in source code files."
 console = Console(soft_wrap=True)
 
 
+PathsOpt = Annotated[List[str], Option(
+	"--path", "-p", show_default=False, help=''
+	"A subdirectory or a file path in the project directory, which will "
+	"be processed by this script. This option can be used multiple times."
+)]
+IdentOpt = Annotated[str, Option(
+	"--id", "-i", show_default=False, help=''
+	"Either the numerical index or The SPDX identifier of the "
+	"license from the available licenses list. Case-insensitive. "
+	"Execute \"devtools license --help\" for more info."
+)]
 YearOpt = Annotated[str, Option(
 	"--year", "-y", show_default=False, help=''
 	"The year of the copyright claim."
@@ -36,41 +47,24 @@ HolderOpt = Annotated[str, Option(
 	'--holder', '-h', show_default=False, help=''
 	"The name of the copyright holder."
 )]
-IdentOpt = Annotated[str, Option(
-	"--id", "-i", show_default=False, help=''
-	"Either the numerical index or The SPDX identifier of the "
-	"license from the available licenses list. Case-insensitive. "
-	"Execute \"devtools license --help\" for more info."
-)]
 SpacesOpt = Annotated[int, Option(
 	"--spaces", "-s", show_default=False, help=''
-	"How many spaces the license header contents will be"
+	"How many spaces the license header contents will be "
 	"indented with from the comment symbol. Default: 3"
 )]
-PathsOpt = Annotated[List[str], Option(
-	"--path", "-p", show_default=False, help=''
-	"A subdirectory path in the project directory, which will be "
-	"processed by this script. If provided, only the included "
-	"paths are processed. Option can be used multiple times."
-)]
-VerboseOpt = Annotated[bool, Option(
-	"--verbose", "-v", show_default=False, help=''
-	"If the details of the operation should be printed to the console."
-	"Default: False"
-)]
 
 
-@app.command(name="apply", epilog="Example: devtools license apply --spdx EUPL-1.2")
-def cmd_apply(
-		year: YearOpt = None,
-		holder: HolderOpt = None,
-		paths: PathsOpt = None,
-		ident: IdentOpt = None,
-		spaces: SpacesOpt = None,
-		verbose: VerboseOpt = False,
-):
+@app.command(name="track", epilog="Example: devtools license set -p 'src' -i 'EUPL-1.2' -y 2024, -h 'Your Name'")
+def cmd_track(
+		paths: PathsOpt,
+		ident: IdentOpt,
+		year: YearOpt,
+		holder: HolderOpt,
+		spaces: SpacesOpt = 3,
+) -> None:
 	"""
-	Applies a license header to any applicable files.
+	Sets the license parameters for this repository. This needs to be
+	executed only once or when you need to change the parameters.
 	"""
 	config: LicenseConfig = read_local_config_file(LicenseConfig)
 	data_path = get_data_storage_path("licenses", create=False) / config.file_name
@@ -90,30 +84,13 @@ def cmd_apply(
 		console.print("[bold red]Invalid identifier.")
 		raise SystemExit()
 
+	config.paths = paths
 	if year:
 		config.header.year = year
 	if holder:
 		config.header.holder = holder
 	if spaces:
 		config.header.spaces = spaces
-
-	conf_file: Path = find_local_config_file(init_cwd=True)
-	conf_dir = conf_file.parent
-	target_dirs = list()
-
-	if not paths:
-		for path in config.paths:
-			target_dirs.append(conf_dir / path)
-	if paths and '.' not in paths:
-		config.paths = list()
-		for path in paths:
-			target_dirs.append(conf_dir / path)
-			config.paths.append(path)
-	if not target_dirs:
-		config.paths = list()
-		for path in conf_dir.iterdir():
-			if path.is_dir() and not path.name.startswith('.'):
-				target_dirs.append(path)
 
 	if ident == '0':
 		config.file_name = "none"
@@ -130,11 +107,28 @@ def cmd_apply(
 	write_local_config_file(config)
 	write_local_license_file(config)
 
+
+VerboseOpt = Annotated[bool, Option(
+	"--verbose", "-v", show_default=False, help=''
+	"If the details of the operation should be printed to the console."
+	"Default: False"
+)]
+
+
+@app.command(name="apply", epilog="Example: devtools license apply --verbose")
+def cmd_apply(verbose: VerboseOpt = False) -> None:
+	"""
+	Applies a license header to any applicable files.
+	"""
+	config: LicenseConfig = read_local_config_file(LicenseConfig)
+	conf_dir: Path = find_local_config_file(init_cwd=True).parent
+
 	header = LicenseHeader(config.header)
 	results = list()
-	for target in target_dirs:
-		for path in target.rglob('**/*.*'):
-			if res := header.apply(path):
+	for target in config.paths:
+		for path in Path(target).rglob('**/*.*'):
+			full_path = (conf_dir / path).resolve()
+			if res := header.apply(full_path):
 				results.append((path, res))
 	if verbose:
 		print_apply_results(results, config, conf_dir)
