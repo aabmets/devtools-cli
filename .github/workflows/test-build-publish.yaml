@@ -1,4 +1,4 @@
-name: CI/CD Workflow
+name: PyPI Publish Pipeline
 
 on:
   push:
@@ -6,19 +6,48 @@ on:
       - main
 
 jobs:
-  test-and-publish:
+  build:
     runs-on: ubuntu-latest
-    environment: release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Run commands
+        run: |
+          pip install poetry
+          poetry install
+          poetry run pytest
+          poetry build
+
+      - name: Upload built package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pypi-package
+          path: dist
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: release
+      url: https://pypi.org/project/devtools-cli/
+
     permissions:
       id-token: write
 
     steps:
-    - uses: actions/checkout@v3
-    - run: pip install poetry
-    - run: poetry install --with dev
-    - run: poetry run pytest
-    - run: poetry build
-    - uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pypi-package
+          path: dist
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

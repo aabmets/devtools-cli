@@ -8,6 +8,7 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
+import yaml
 import hashlib
 from pathlib import Path
 from devtools_cli.utils import *
@@ -21,7 +22,9 @@ __all__ = [
     "digest_directory",
     "count_descriptors",
     "read_descriptor_file_version",
-    "write_descriptor_file_version"
+    "write_descriptor_file_version",
+    "read_chart_and_app_version",
+    "write_chart_and_app_version"
 ]
 
 DIGEST_LENGTH = 32
@@ -97,3 +100,33 @@ def write_descriptor_file_version(new_version: str) -> None:
         path = config_file.parent / file
         if path.exists() and path.is_file():
             func('write', path, new_version)
+
+
+def read_chart_and_app_version() -> tuple:
+    config_file = find_local_config_file(init_cwd=True)
+    chart_path = config_file.parent / 'chart/Chart.yaml'
+    if chart_path.exists() and chart_path.is_file():
+        with open(chart_path, 'r') as file:
+            chart_yaml = yaml.safe_load(file)
+            chart_version = chart_yaml.get('version', '0.0.0')
+            app_version = chart_yaml.get('appVersion', '0.0.0')
+            return chart_version, app_version
+    return '0.0.0', '0.0.0'
+
+
+def write_chart_and_app_version(new_version: str) -> None:
+    config_file = find_local_config_file(init_cwd=True)
+    chart_path = config_file.parent / 'chart/Chart.yaml'
+
+    if chart_path.exists() and chart_path.is_file():
+        with open(chart_path, 'r') as file:
+            lines = file.readlines()
+
+        with open(chart_path, 'w') as file:
+            for line in lines:
+                if line.strip().startswith('version:'):
+                    file.write(f'version: {new_version}\n')
+                elif line.strip().startswith('appVersion:'):
+                    file.write(f'appVersion: {new_version}\n')
+                else:
+                    file.write(line)
