@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "devtools-cli"
-version = "0.13.1"
+version = "0.13.2"
 description = "A toolbox of cross-language utility scripts for efficient software development."
 license = "MIT"
 authors = ["Mattias Aabmets <mattias.aabmets@gmail.com>"]
@@ -34,7 +34,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<4"
 orjson = "^3.9.15"
 pyyaml = "^6.0.1"
 httpx = "^0.27.0"

@@ -15,7 +15,7 @@
     "file_name": "mit.json"
   },
   "version_cmd": {
-    "app_version": "0.13.1",
+    "app_version": "0.13.2",
     "track_descriptor": true,
     "track_chart": false,
     "components": [
@@ -23,7 +23,7 @@
         "name": "cli",
         "target": ".",
         "ignore": [],
-        "hash": "da23e57102b8ddcc9635359233db0fc8"
+        "hash": "1dc30c1d2cdd0365efc1c2f405409a42"
       }
     ]
   }
