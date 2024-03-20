@@ -8,6 +8,7 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
+from typing import List
 from devtools_cli.models import DefaultModel, ConfigSection
 
 __all__ = [
@@ -19,7 +20,7 @@ __all__ = [
 class TrackedComponent(DefaultModel):
     name: str
     target: str
-    ignore: list[str]
+    ignore: List[str]
     hash: str
 
     @staticmethod
@@ -36,7 +37,7 @@ class VersionConfig(ConfigSection):
     app_version: str
     track_descriptor: bool
     track_chart: bool
-    components: list[TrackedComponent]
+    components: List[TrackedComponent]
 
     @staticmethod
     def __defaults__() -> dict:

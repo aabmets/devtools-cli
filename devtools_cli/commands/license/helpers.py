@@ -16,7 +16,7 @@ from pathlib import Path
 from rich.tree import Tree
 from rich.panel import Panel
 from rich.console import Console
-from typing import Callable, Iterator
+from typing import Callable, Iterator, Union, List, Dict, Tuple
 from devtools_cli.utils import *
 from .models import *
 from .header import *
@@ -66,7 +66,7 @@ def github_repo_tree(url: str) -> Iterator[GitHubRepoLeaf]:
 		yield leaf
 
 
-def fetch_license_filenames() -> list[str]:
+def fetch_license_filenames() -> List[str]:
 	"""
 	This function iterates over the tree structure of a GitHub repository, searches
 	for a subtree with the path '_licenses', and if this subtree is found, returns a
@@ -106,7 +106,7 @@ async def fetch_one_license(client: httpx.AsyncClient, index: int, filename: str
 	"""
 	resp = await client.get(GH_RAW_PARTIAL_PATH + filename)
 	resp = resp.text.split(sep="---")
-	spdx = filename.removesuffix('.txt')
+	spdx = filename.rstrip('.txt')
 	data = yaml.safe_load(resp[1])
 
 	return LicenseDetails(
@@ -118,7 +118,7 @@ async def fetch_one_license(client: httpx.AsyncClient, index: int, filename: str
 	)
 
 
-async def fetch_license_details(filenames: list[str], callback: Callable) -> tuple[LicenseDetails]:
+async def fetch_license_details(filenames: List[str], callback: Callable) -> Tuple[LicenseDetails]:
 	"""
 	This coroutine creates an HTTP client, schedules a coroutine for each provided filename
 	to fetch the corresponding license's details from a GitHub repository, attaches a callback
@@ -142,7 +142,7 @@ async def fetch_license_details(filenames: list[str], callback: Callable) -> tup
 		return await asyncio.gather(*tasks)
 
 
-def write_licenses_to_storage(licenses: tuple[LicenseDetails]) -> None:
+def write_licenses_to_storage(licenses: Tuple[LicenseDetails]) -> None:
 	"""
 	This function iterates through a list of LicenseDetails objects, each containing details
 	of a license, writes each license's details into a file in a specified storage directory,
@@ -203,7 +203,7 @@ def read_license_metadata() -> LicenseMetadata:
 	return read_file_into_model(path, LicenseMetadata)
 
 
-def ident_to_license_filepath(ident: str) -> Path | None:
+def ident_to_license_filepath(ident: str) -> Union[Path, None]:
 	"""
 	This function retrieves the file path of a license by reading the license metadata
 	and searching for a license with a given identity, which can be either an index ID
@@ -271,13 +271,13 @@ def write_local_license_file(config: LicenseConfig) -> None:
 
 
 def print_apply_results(
-		results: list[tuple[Path, ApplyResult]],
+		results: List[Tuple[Path, ApplyResult]],
 		config: LicenseConfig,
 		conf_dir: Path
 ) -> None:
 	top_key = str(conf_dir)
 	main_tree = Tree(f"[bold deep_pink3]{top_key}[/]")
-	tree_map: dict[str, Tree] = dict()
+	tree_map: Dict[str, Tree] = dict()
 	tree_map[top_key] = main_tree
 
 	for path, res in results:
@@ -319,14 +319,13 @@ def print_apply_results(
 	usp_types = set()
 
 	for path, res in results:
-		match res:
-			case 'applied':
-				apply_totals += 1
-			case 'skipped':
-				skip_totals += 1
-			case 'unsupported':
-				usp_types.add(path.suffix)
-				usp_totals += 1
+		if res == 'applied':
+			apply_totals += 1
+		elif res == 'skipped':
+			skip_totals += 1
+		elif res == 'unsupported':
+			usp_types.add(path.suffix)
+			usp_totals += 1
 
 	console.print(f"[bold deep_pink3]Operation summary:[/]")
 	console.print(f"Licensed {apply_totals} files under the [chartreuse3]{config.header.title}[/].")

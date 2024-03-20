@@ -8,6 +8,7 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
+from typing import List, Dict
 from pydantic import BaseModel, Field, AliasChoices
 from devtools_cli.models import DefaultModel, ConfigSection
 
@@ -29,7 +30,7 @@ class GitHubRepoLeaf(BaseModel):
 
 
 class GitHubResponse(BaseModel):
-	tree: list[GitHubRepoLeaf]
+	tree: List[GitHubRepoLeaf]
 
 
 class LicenseListEntry(DefaultModel):
@@ -47,8 +48,8 @@ class LicenseListEntry(DefaultModel):
 
 
 class LicenseMetadata(DefaultModel):
-	ident_map: dict[str, str]
-	lic_list: list[LicenseListEntry]
+	ident_map: Dict[str, str]
+	lic_list: List[LicenseListEntry]
 
 	@staticmethod
 	def __defaults__() -> dict:
@@ -62,9 +63,9 @@ class LicenseDetails(DefaultModel):
 	title: str
 	spdx_id: str = Field(validation_alias=AliasChoices("spdx-id", "spdx_id"))
 	index_id: str
-	permissions: list[str]
-	conditions: list[str]
-	limitations: list[str]
+	permissions: List[str]
+	conditions: List[str]
+	limitations: List[str]
 	file_name: str
 	web_url: str
 	full_text: str
@@ -106,7 +107,7 @@ class LicenseConfigHeader(DefaultModel):
 
 class LicenseConfig(ConfigSection):
 	header: LicenseConfigHeader
-	paths: list[str]
+	paths: List[str]
 	file_name: str
 
 	@staticmethod

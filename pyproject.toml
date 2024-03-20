@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "devtools-cli"
-version = "0.13.2"
+version = "0.13.3"
 description = "A toolbox of cross-language utility scripts for efficient software development."
 license = "MIT"
 authors = ["Mattias Aabmets <mattias.aabmets@gmail.com>"]
@@ -13,34 +13,35 @@ repository = "https://github.com/aabmets/devtools-cli"
 keywords = ["toolbox", "cross-language", "utility", "scripts", "software", "development"]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: C",
-    "Programming Language :: C#",
-    "Programming Language :: C++",
-    "Programming Language :: PHP",
-    "Programming Language :: Ruby",
-    "Programming Language :: JavaScript",
-    "Programming Language :: Kotlin",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development",
-    "Topic :: Software Development :: Libraries"
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Version Control",
+    "Topic :: Utilities"
 ]
 packages = [
     { include = "devtools_cli" }
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4"
+python = ">=3.8,<4"
 orjson = "^3.9.15"
 pyyaml = "^6.0.1"
 httpx = "^0.27.0"
 semver = "^3.0.2"
 pydantic = "^2.6.2"
-typer = { extras = ["all"], version = "^0.9.0" }
+tomli = { version = "*", python = "<3.11"}
+typer = { version = "^0.9.0", extras = ["all"] }
 
 [tool.poetry.group.dev]
 optional = true

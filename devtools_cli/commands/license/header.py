@@ -9,7 +9,7 @@
 #   SPDX-License-Identifier: MIT
 #
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Union, List, Tuple
 from dataclasses import dataclass
 from .models import LicenseConfigHeader
 
@@ -25,7 +25,7 @@ __all__ = [
 	"LicenseHeader"
 ]
 
-SymbolChar = str | tuple[str, str]
+SymbolChar = Union[str, Tuple[str, str]]
 ApplyResult = Literal['unsupported', 'skipped', 'applied']
 
 
@@ -172,7 +172,7 @@ class StarSymbolExtMap:
 @dataclass(frozen=True)
 class HeaderData:
 	symbols: CommentSymbols
-	extensions: list[str]
+	extensions: List[str]
 	text: str
 
 
@@ -184,7 +184,7 @@ class LicenseHeader:
 	properly. It is initialized with a configuration object that defines the
 	specifics of the license header.
 	"""
-	__headers__: list[HeaderData]
+	__headers__: List[HeaderData]
 
 	def __init__(self, config: LicenseConfigHeader):
 		"""
@@ -233,7 +233,7 @@ class LicenseHeader:
 		if not path or not path.exists() or not path.is_file():
 			return 'unsupported'
 
-		header: HeaderData | None = None
+		header: Union[HeaderData, None] = None
 		for obj in self.__headers__:
 			if path.suffix in obj.extensions:
 				header = obj

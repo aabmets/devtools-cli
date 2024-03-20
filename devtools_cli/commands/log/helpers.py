@@ -9,6 +9,7 @@
 #   SPDX-License-Identifier: MIT
 #
 import re
+from typing import Union, List
 from pathlib import Path
 from datetime import date
 from devtools_cli.utils import *
@@ -39,7 +40,7 @@ def get_section_label(version: str) -> str:
     ])
 
 
-def remove_latest_label(arr: list[str]) -> None:
+def remove_latest_label(arr: List[str]) -> None:
     if len(arr) >= 1:
         suffix = '- _latest_'
         line = arr[0].strip()
@@ -51,7 +52,7 @@ def extract_version_from_label(line: str) -> str:
     return line.split('[')[-1].split(']')[0]
 
 
-def conform_changes(changes: str | list) -> list[str]:
+def conform_changes(changes: Union[str, list]) -> List[str]:
     def conformed(c: str):
         return c.startswith("- ") or c.startswith("  ")
 
@@ -74,7 +75,7 @@ def get_logfile_path(*, init_cwd: bool) -> Path:
     return logfile
 
 
-def read_existing_content(*, init_cwd: bool) -> list[str]:
+def read_existing_content(*, init_cwd: bool) -> List[str]:
     logfile = get_logfile_path(init_cwd=init_cwd)
     with logfile.open('r') as file:
         lines = file.read().splitlines()
@@ -82,7 +83,7 @@ def read_existing_content(*, init_cwd: bool) -> list[str]:
     return lines[skip:]
 
 
-def write_new_section(version: str, changes: str | list[str], existing: list[str]) -> None:
+def write_new_section(version: str, changes: Union[str, List[str]], existing: List[str]) -> None:
     existing = add_release_link_ref(version, existing)
     conformed = conform_changes(changes)
     label = get_section_label(version)
@@ -98,7 +99,7 @@ def write_new_section(version: str, changes: str | list[str], existing: list[str
         ]))
 
 
-def update_latest_section(changes: str | list[str], existing: list[str]) -> None:
+def update_latest_section(changes: Union[str, List[str]], existing: List[str]) -> None:
     latest, remainder = [], []
     for i in range(1, len(existing)):
         if existing[i].startswith(SECTION_LEVEL) or is_line_link_ref(existing[i]):

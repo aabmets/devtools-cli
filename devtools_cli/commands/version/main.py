@@ -8,6 +8,7 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
+from typing import List
 from pathlib import Path
 from semver import Version
 from rich.prompt import Confirm
@@ -32,7 +33,7 @@ TargetOpt = Annotated[str, Option(
 	'--target', '-t', show_default=False, help=''
 	'The path to target with tracking, relative to the path of the .devtools config file.'
 )]
-IgnoreOpt = Annotated[list[str], Option(
+IgnoreOpt = Annotated[List[str], Option(
 	'--ignore', '-i', show_default=False, help=''
 	'A path to be ignored relative to the target path. Can be used multiple times.'
 )]

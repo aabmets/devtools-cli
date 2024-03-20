@@ -8,7 +8,11 @@
 #   
 #   SPDX-License-Identifier: MIT
 #
-import tomllib
+try:
+    import tomllib
+except (ImportError, NameError):
+    import tomli as tomllib  # When python version <3.11
+from typing import List
 from typer import Typer
 from pathlib import Path
 from rich.console import Console
@@ -43,7 +47,7 @@ class PackageInfo:
     version: str
     description: str
     license: str
-    authors: list[str]
+    authors: List[str]
     repository: str
 
     def __init__(self, data: dict):

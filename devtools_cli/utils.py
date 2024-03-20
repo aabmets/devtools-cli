@@ -12,7 +12,7 @@ import os
 import orjson
 from pathlib import Path
 from functools import wraps
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Union
 from pydantic import BaseModel, ValidationError
 from rich.prompt import Confirm
 from rich.pretty import pprint
@@ -62,34 +62,33 @@ def error_printer(func: Callable) -> Callable:
 
 
 def check_model_type(obj: Any, cmp: Any, expect: Literal['class', 'object']) -> None:
-	match expect:
-		case 'class':
-			if not isinstance(obj, type):
-				raise TypeError(
-					f"Expected a subclass of '{cmp.__name__}', but received "
-					f"an instance of '{obj.__class__.__name__}' instead."
-				)
-			elif not issubclass(obj, cmp):
-				raise TypeError(
-					f"Expected a subclass of '{cmp.__name__}', but "
-					f"received class '{obj.__name__}' instead."
-				)
-		case 'object':
-			if isinstance(obj, type):
-				raise TypeError(
-					f"Expected an instance of '{cmp.__name__}' subclass, "
-					f"but received class '{obj.__name__}' instead."
-				)
-			if not isinstance(obj, cmp):
-				raise TypeError(
-					f"Expected an instance of {cmp.__name__} subclass, "
-					f"but received '{obj.__class__.__name__}' instead."
-				)
-		case _:  # pragma: no cover
-			raise ValueError(
-				f"Expected a string literal 'class' or 'object' for the "
-				f"'expect' parameter, but received '{expect}' instead."
+	if expect == 'class':
+		if not isinstance(obj, type):
+			raise TypeError(
+				f"Expected a subclass of '{cmp.__name__}', but received "
+				f"an instance of '{obj.__class__.__name__}' instead."
 			)
+		elif not issubclass(obj, cmp):
+			raise TypeError(
+				f"Expected a subclass of '{cmp.__name__}', but "
+				f"received class '{obj.__name__}' instead."
+			)
+	elif expect == 'object':
+		if isinstance(obj, type):
+			raise TypeError(
+				f"Expected an instance of '{cmp.__name__}' subclass, "
+				f"but received class '{obj.__name__}' instead."
+			)
+		if not isinstance(obj, cmp):
+			raise TypeError(
+				f"Expected an instance of {cmp.__name__} subclass, "
+				f"but received '{obj.__class__.__name__}' instead."
+			)
+	else:  # pragma: no cover
+		raise ValueError(
+			f"Expected a string literal 'class' or 'object' for the "
+			f"'expect' parameter, but received '{expect}' instead."
+		)
 
 
 def get_data_storage_path(subdir='', filename='', create=True) -> Path:
@@ -123,7 +122,7 @@ def get_data_storage_path(subdir='', filename='', create=True) -> Path:
 	return data_path
 
 
-def find_local_config_file(*, init_cwd: bool) -> Path | None:
+def find_local_config_file(*, init_cwd: bool) -> Union[Path, None]:
 	"""
 	Find the local configuration file.
 
