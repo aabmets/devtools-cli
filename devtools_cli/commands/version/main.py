@@ -102,26 +102,26 @@ def cmd_track(
 	if track_chart:
 		chart_ver, app_ver = read_chart_and_app_version()
 		if track_descriptor:
-			if chart_ver != config.app_version:
+			if chart_ver and chart_ver != config.app_version:
 				console.print(
 					f"ERROR! The 'version' value in the Helm Chart.yaml file must "
 					f"match the version number in the project descriptor file!"
 				)
 				raise SystemExit()
-			elif app_ver != config.app_version:
+			elif app_ver and app_ver != config.app_version:
 				console.print(
 					f"ERROR! The 'appVersion' value in the Helm Chart.yaml file must "
 					f"match the version number in the project descriptor file!"
 				)
 				raise SystemExit()
-		if chart_ver != app_ver:
+		if all(x is not None for x in [chart_ver, app_ver]) and chart_ver != app_ver:
 			console.print(
 				f"ERROR! Devtools requires the 'version' and 'appVersion' "
 				f"values in the Helm Chart.yaml file to be identical!"
 			)
 			raise SystemExit()
 		config.track_chart = track_chart
-		config.app_version = chart_ver
+		config.app_version = chart_ver or "0.0.0"
 
 	comp = TrackedComponent(
 		hash=track_hash,
@@ -129,7 +129,6 @@ def cmd_track(
 		ignore=ignore,
 		name=name
 	)
-
 	if index is None:
 		config.components.append(comp)
 		msg = f"Successfully tracked component: '{name}'.\n"

@@ -108,10 +108,10 @@ def read_chart_and_app_version() -> tuple:
     if chart_path.exists() and chart_path.is_file():
         with open(chart_path, 'r') as file:
             chart_yaml = yaml.safe_load(file)
-            chart_version = chart_yaml.get('version', '0.0.0')
-            app_version = chart_yaml.get('appVersion', '0.0.0')
+            chart_version = chart_yaml.get('version', None)
+            app_version = chart_yaml.get('appVersion', None)
             return chart_version, app_version
-    return '0.0.0', '0.0.0'
+    return None, None
 
 
 def write_chart_and_app_version(new_version: str) -> None:
@@ -124,9 +124,9 @@ def write_chart_and_app_version(new_version: str) -> None:
 
         with open(chart_path, 'w') as file:
             for line in lines:
-                if line.strip().startswith('version:'):
+                if line.startswith('version:'):
                     file.write(f'version: {new_version}\n')
-                elif line.strip().startswith('appVersion:'):
+                elif line.startswith('appVersion:'):
                     file.write(f'appVersion: {new_version}\n')
                 else:
                     file.write(line)
