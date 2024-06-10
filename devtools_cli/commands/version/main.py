@@ -21,7 +21,11 @@ from .helpers import *
 from .models import *
 
 
-app = Typer(name="version", help="Manages project version number and tracks filesystem changes.")
+app = Typer(
+	name="version",
+	no_args_is_help=True,
+	help="Manages project version number and tracks filesystem changes."
+)
 console = Console(soft_wrap=True)
 
 

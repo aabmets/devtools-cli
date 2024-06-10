@@ -24,7 +24,11 @@ from .header import *
 from .models import *
 from devtools_cli.utils import *
 
-app = Typer(name="license", help="Manages license headers in source code files.")
+app = Typer(
+	name="license",
+	no_args_is_help=True,
+	help="Manages license headers in source code files."
+)
 console = Console(soft_wrap=True)
 
 

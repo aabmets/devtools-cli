@@ -17,7 +17,11 @@ from rich.prompt import Confirm
 from rich.console import Console
 from devtools_cli.utils import *
 
-app = Typer(name="config", help="Project management configuration.")
+app = Typer(
+    name="config",
+    no_args_is_help=True,
+    help="Project management configuration."
+)
 console = Console(soft_wrap=True)
 
 

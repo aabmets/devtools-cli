@@ -20,7 +20,11 @@ from .models import *
 from .errors import *
 
 
-app = Typer(name="log", help="Manages project changelog file.")
+app = Typer(
+    name="log",
+    no_args_is_help=True,
+    help="Manages project changelog file."
+)
 console = Console(soft_wrap=True)
 
 

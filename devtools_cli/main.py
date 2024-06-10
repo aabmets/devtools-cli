@@ -13,7 +13,7 @@ import importlib
 from typer import Typer
 from pathlib import Path
 
-app = Typer()
+app = Typer(no_args_is_help=True)
 
 package_path = Path(__file__).parent
 import_dir = package_path / "commands"
