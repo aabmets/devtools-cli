@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "devtools-cli"
-version = "0.14.0"
+version = "0.14.1"
 description = "A toolbox of cross-language utility scripts for efficient software development."
 license = "MIT"
 authors = ["Mattias Aabmets <mattias.aabmets@gmail.com>"]
@@ -42,7 +42,7 @@ httpx = ">=0.25.0"
 semver = ">=3.0.0"
 pydantic = ">=2.5.0"
 tomli = { version = ">=2.0.0", python = "<3.11"}
-typer = { version = ">=0.10.0", extras = ["all"] }
+typer = ">=0.10.0"
 
 [tool.poetry.group.dev]
 optional = true
