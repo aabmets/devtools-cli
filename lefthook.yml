@@ -1,0 +1,14 @@
+pre-commit:
+  jobs:
+    - name: Lint and fix Python files
+      glob: "**/*.py"
+      group:
+        piped: true
+        jobs:
+          - run: isort {staged_files}
+            stage_fixed: true
+          - run: black {staged_files}
+            stage_fixed: true
+          - run: flake8 {staged_files}
+          - run: mypy {staged_files}
+          - run: bandit {staged_files}

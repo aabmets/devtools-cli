@@ -1,25 +1,24 @@
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
+[project]
 name = "devtools-cli"
-version = "0.14.1"
+version = "1.0.0rc0"
 description = "A toolbox of cross-language utility scripts for efficient software development."
-license = "MIT"
-authors = ["Mattias Aabmets <mattias.aabmets@gmail.com>"]
+authors = [
+   { name = "Mattias Aabmets", email = "mattias.aabmets@gmail.com" }
+]
+license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/aabmets/devtools-cli"
 keywords = ["toolbox", "cross-language", "utility", "scripts", "software", "development"]
+repository = "https://github.com/aabmets/devtools-cli"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -30,35 +29,64 @@ classifiers = [
     "Topic :: Software Development :: Version Control",
     "Topic :: Utilities"
 ]
-packages = [
-    { include = "devtools_cli" }
+requires-python = ">=3.10"
+dependencies = [
+    "bandit>=1.7.8",
+    "black>=24.4.0",
+    "blacksheep>=2.0.0",
+    "flake8>=7.0.0",
+    "flake8-pyproject>=1.2.3",
+    "isort>=6.0.0",
+    "lefthook>=1.8.0",
+    "mypy>=1.11.0",
+    "orjson>=3.10.0",
+    "psutil>=6.0.0",
+    "types-psutil>=6.0.0",
+    "pydantic>=2.6.0",
+    "pyyaml>=6.0.0",
+    "rich>=13.8.0",
+    "typer>=0.10.0",
+    "watchdog>=6.0.0",
+    "orjson>=3.10.0",
+    "semver>=3.0.0",
+    "tomli>=2.0.0",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.10"
-orjson = ">=3.10.0"
-pyyaml = ">=6.0.0"
-httpx = ">=0.25.0"
-semver = ">=3.0.0"
-pydantic = ">=2.5.0"
-tomli = { version = ">=2.0.0", python = "<3.11"}
-typer = ">=0.10.0"
+[project.urls]
+"Repository" = "https://github.com/aabmets/devtools-cli"
+"Documentation" = "https://github.com/aabmets/devtools-cli/wiki"
+"Bug Tracker" = "https://github.com/aabmets/devtools-cli/issues"
 
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.5"
-pytest-cov = "^6.0.0"
-pytest-asyncio = "^0.25.3"
-coverage = "^7.6.12"
-
-[tool.poetry.scripts]
+[project.scripts]
 devtools = "devtools_cli.main:app"
 dtconf = "devtools_cli.commands.config.main:app"
 dtlic = "devtools_cli.commands.license.main:app"
 dtver = "devtools_cli.commands.version.main:app"
 dtlog = "devtools_cli.commands.log.main:app"
+
+[dependency-groups]
+develop = [
+    "coverage>=7.6.0",
+    "hatchling>=1.24.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.5",
+    "pytest-cov>=6.0.0",
+]
+
+[tool.flake8]
+max-line-length = 100
+max-complexity = 20
+
+[tool.mypy]
+disallow_any_unimported = true
+disallow_any_expr = true
+disallow_any_decorated = true
+disallow_any_explicit = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_untyped_decorators = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -77,7 +105,7 @@ branch = true
 source = ["devtools_cli/*"]
 
 [tool.coverage.report]
-#fail_under = 90
+fail_under = 90
 skip_empty = true
 ignore_errors = true
 exclude_lines = [
@@ -91,3 +119,10 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = ".htmlcov"
+
+[tool.hatch.build]
+include = ["devtools_cli"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
